@@ -109,9 +109,12 @@ class Connection:
             SQLAlchemy engine instance
         """
         if self.db_type == "mssql":
-            # Create SQLAlchemy engine using the pyodbc driver
-            odbc_connect = self.full_connection_string
-            engine = create_engine(f"mssql+pyodbc:///?odbc_connect={odbc_connect}")
+            # Create SQLAlchemy engine using a connection creator to avoid URL encoding issues
+            # This bypasses SQLAlchemy's URL parsing and passes the conn str directly to pyodbc
+            def creator() -> pyodbc.Connection:
+                return pyodbc.connect(self.full_connection_string)
+
+            engine = create_engine("mssql+pyodbc://", creator=creator)
             return engine
         elif self.db_type == "postgres":
             if self.connection_string.startswith("postgresql://"):

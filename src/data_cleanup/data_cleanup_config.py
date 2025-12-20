@@ -21,6 +21,9 @@ class CleanupConfig:
             raise ValueError("Database is not defined in config")
         self.database: str = database
 
+        # Optional name for output files (falls back to "{database}_cleanup" if not provided)
+        self.name: str = config.get("name", f"{database}_cleanup")
+
         cleanup_table = config.get("table")
         if not cleanup_table:
             raise ValueError("Table for cleanup is not defined in config")

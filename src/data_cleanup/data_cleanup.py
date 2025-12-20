@@ -1,3 +1,4 @@
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -107,7 +108,14 @@ def main() -> None:
         script_dir = Path("./output/scripts")
         script_dir.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        script_file = script_dir / f"{config.database}_cleanup_{timestamp}.sql"
+
+        # Clean the name for safe file naming (like data_compare does)
+        clean_name = config.name.lower()
+        clean_name = clean_name.replace(" ", "_")
+        clean_name = re.sub(r"_+", "_", clean_name)
+        clean_name = re.sub(r"[^a-z0-9_-]", "", clean_name)
+
+        script_file = script_dir / f"{clean_name}_{timestamp}.sql"
 
         with open(script_file, "w") as f:
             f.write(script)
