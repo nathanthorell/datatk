@@ -16,7 +16,8 @@ object_types = [
     "sequence",
     "index",
     "type",
-    "external_table",
+    "extension",      # PostgreSQL only
+    "external_table", # MSSQL only
     "foreign_key",
 ]
 

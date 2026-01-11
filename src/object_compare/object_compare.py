@@ -158,6 +158,7 @@ def main() -> None:
         "sequence": "sequence",
         "index": "index",
         "type": "type",
+        "extension": "extension",
         "external_table": "external table",
         "foreign_key": "foreign key",
     }

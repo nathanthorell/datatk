@@ -177,10 +177,12 @@ def get_pg_type_query(schema_name: str) -> str:
                     )
                 ) AS definition
             FROM pg_type t
+            INNER JOIN pg_class c ON c.oid = t.typrelid
             INNER JOIN pg_attribute a ON a.attrelid = t.typrelid
             INNER JOIN pg_namespace n ON t.typnamespace = n.oid
             WHERE n.nspname = '{schema_name}'
             AND t.typtype = 'c'
+            AND c.relkind = 'c'
             AND a.attnum > 0
             AND NOT a.attisdropped
             GROUP BY t.typname
@@ -267,4 +269,25 @@ def get_pg_foreign_key_query(schema_name: str) -> str:
         GROUP BY tc.constraint_name, tc.constraint_schema, tc.table_name,
                  rc.delete_rule, rc.update_rule, ccu.table_name, ccu.table_schema
         ORDER BY tc.constraint_name
+        """
+
+
+def get_pg_extension_query() -> str:
+    """
+    Get PostgreSQL extension definitions (database-wide).
+
+    Note: Extensions are database-level objects, so this query returns ALL extensions
+    in the database regardless of schema.
+    """
+    return """
+        SELECT
+            e.extname AS extension_name,
+            CONCAT(
+                'VERSION=', e.extversion,
+                ', SCHEMA=', n.nspname,
+                CASE WHEN e.extrelocatable THEN ', RELOCATABLE' ELSE ', NOT RELOCATABLE' END
+            ) AS extension_definition
+        FROM pg_extension e
+        INNER JOIN pg_namespace n ON e.extnamespace = n.oid
+        ORDER BY e.extname
         """

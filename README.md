@@ -4,10 +4,12 @@ A collection of utility tools for working with various dialects of SQL databases
 
 ## Features
 
-- **Object Comparison Tool** (`object_compare`): Compare definitions of stored procedures, views, functions, tables, triggers, sequences, indexes, types, external tables, and foreign keys across different environments (DEV, QA, UAT, PROD)
-
+- **Object Comparison Tool** (`object_compare`): Compare database object definitions across multiple environments (DEV, QA, UAT, PROD)
+  - **Database Support**: MSSQL and PostgreSQL
+  - **Object Types**: stored procedures, views, functions, tables, triggers, sequences, indexes, types, extensions (PostgreSQL), external tables (MSSQL), and foreign keys
   - Identify exclusive objects that exist in only one environment
-  - Check for definition differences in objects across environments
+  - Detect definition differences using MD5 checksums for efficient comparison
+  - Rich console output with progress indicators and difference highlighting
 
 - **Stored Procedure Tester** (`usp_tester`): Batch test execution of stored procedures with configurable parameters
   - Support for default parameter values
@@ -43,35 +45,40 @@ A collection of utility tools for working with various dialects of SQL databases
 ### Requirements
 
 - Python 3.13+
+- [uv](https://docs.astral.sh/uv/) - Fast Python package and project manager
 - Appropriate database drivers:
 
     - ODBC Driver for SQL Server (for MSSQL databases)
-    - More drivers to be added for other database types
+    - PostgreSQL drivers (for PostgreSQL databases)
 
 ### Setup
 
-1. Clone the repository:
+1. Install `uv` if you haven't already:
+
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+
+2. Clone the repository:
 
    ```bash
    git clone https://github.com/nathanthorell/sql-tools.git
    cd sql-tools
    ```
 
-2. Create and activate a virtual environment, then install the package:
+3. Install dependencies with `uv` (automatically creates virtual environment):
+
+   ```bash
+   uv sync --extra dev
+   ```
+
+   Alternatively, use the Makefile:
 
    ```bash
    make install
    ```
 
-   Or manually:
-
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   pip install -e ".[dev]"
-   ```
-
-3. Create a `.env` file based on the provided `.env.example`:
+4. Create a `.env` file based on the provided `.env.example`:
 
    ```bash
    cp .env.example .env
@@ -79,7 +86,7 @@ A collection of utility tools for working with various dialects of SQL databases
 
    Then update the connection strings with your database details.
 
-4. Create a `config.toml` file for each tool you want to use.
+5. Create a `config.toml` file for each tool you want to use.
 
 ## Configuration
 
@@ -103,7 +110,7 @@ Create a `config.toml` file in the project root directory based on the provided 
 cp config-example.toml config.toml
 ```
 
-- **Object Compare**: Set the schema name to compare across environments
+- **Object Compare**: Configure database type (MSSQL or PostgreSQL), schema name, and object types to compare across environments
 - **USP Tester**: Configure the schema, logging level, and default parameter values for stored procedures
 - **View Tester**: Configure the schema and logging level
 - **Schema Size**: Configure the server connections, databases to compare, and logging level
@@ -112,23 +119,28 @@ cp config-example.toml config.toml
 
 ## Usage
 
+All tools can be run using `uv run`:
+
 ### Object Comparison Tool
 
 ```bash
-object_compare
+uv run object_compare
 ```
 
 This will:
 
 1. Connect to each configured environment using the specified connection strings
-1. Compare object definitions across environments for each object type
-1. Report differences in object definitions using checksums
-1. Highlight objects that exist in one environment but not others
+1. Query metadata for each configured object type (stored procedures, views, functions, tables, etc.)
+1. Calculate MD5 checksums of object definitions for efficient comparison
+1. Compare checksums across all environments to detect differences
+1. Display a formatted table showing:
+   - Objects that exist in some environments but not others
+   - Objects with different definitions (checksum mismatches) across environments
 
 ### Stored Procedure Tester
 
 ```bash
-usp_tester
+uv run usp_tester
 ```
 
 This will:
@@ -141,7 +153,7 @@ This will:
 ### View Tester
 
 ```bash
-view_tester
+uv run view_tester
 ```
 
 This will:
@@ -153,7 +165,7 @@ This will:
 ### Schema Size
 
 ```bash
-schema_size
+uv run schema_size
 ```
 
 This will:
@@ -166,7 +178,7 @@ This will:
 ### Data Compare
 
 ```bash
-data_compare
+uv run data_compare
 ```
 
 1. Connect to the configured database sources (supports both MSSQL and PostgreSQL)
@@ -186,7 +198,7 @@ data_compare
 ### Database Diagram Generator
 
 ```bash
-db_diagram
+uv run db_diagram
 ```
 
 This will:
@@ -200,6 +212,15 @@ This will:
 ## Development
 
 ### Linting and Formatting
+
+```bash
+uv run ruff check src/        # Run ruff linter
+uv run ruff check src/ --fix  # Run ruff with auto-fix
+uv run mypy src/              # Run mypy type checker
+uv run ruff format src/       # Format code with ruff
+```
+
+Or use the Makefile:
 
 ```bash
 make lint    # Run ruff and mypy linters

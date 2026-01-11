@@ -93,7 +93,10 @@ def get_query_for_object_type(schema_name: str, object_type: str, db_type: str =
         console.print(f"[yellow]Warning:[/] Unknown database type '{db_type}'")
         return ""
 
-    if object_type in query_functions:
+    # Special case: extension is database-wide in PostgreSQL (no schema parameter)
+    if object_type == "extension" and db_type == "postgres":
+        return pg.get_pg_extension_query()
+    elif object_type in query_functions:
         return query_functions[object_type](schema_name)
-
-    return ""
+    else:
+        return ""
