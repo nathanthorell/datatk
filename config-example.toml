@@ -22,14 +22,17 @@ object_types = [
 ]
 
 [object_compare.environments]
-DEV = "OBJ_COMPARE_DEV_DB"
-QA = "OBJ_COMPARE_QA_DB"
-UAT = "OBJ_COMPARE_UAT_DB"
-PROD = "OBJ_COMPARE_PROD_DB"
+DEV = "DEV_DB"
+QA = "QA_DB"
+TEST = "TEST_DB"
+STAGE = "STAGE_DB"
+PROD = "PROD_DB"
 
 ######################################################################################
 [usp_tester]
 schema = "report"
+conn = "DEV_DB"
+database = "ExampleDb" # Optional, switches from whatever db is in conn to this db
 
 [usp_tester.defaults]
 start_date = "2024-01-01"
@@ -44,9 +47,13 @@ varchar = "12345"
 ######################################################################################
 [view_tester]
 schema = "report"
+conn = "DEV_DB"
+database = "ExampleDb" # Optional, switches from whatever db is in conn to this db
 
 ######################################################################################
 [sql_to_parquet]
+conn = "DEV_DB"
+database = "ExampleDb" # Optional, switches from whatever db is in conn to this db
 data_dir = "./data/"
 batch_size = 10000
 
@@ -77,15 +84,19 @@ filter = "Department = 'Engineering'"
 
 ######################################################################################
 [schema_size]
-connections.DEV = "SCHEMA_SIZE_DEV_SERVER"
-connections.QA = "SCHEMA_SIZE_QA_SERVER"
-connections.UAT = "SCHEMA_SIZE_UAT_SERVER"
-connections.PROD = "SCHEMA_SIZE_PROD_SERVER"
+[schema_size.connections]
+DEV = "DEV_DB"
+QA = "QA_DB"
+TEST = "TEST_DB"
+STAGE = "STAGE_DB"
+PROD = "PROD_DB"
 
-databases.DEV = ["DevDB1", "DevDB2", "DevDB3"]
-databases.QA = ["QaDB1", "QaDB2"]
-databases.UAT = ["UatDB1", "UatDB2"]
-databases.PROD = ["ProdDB1", "ProdDB2", "ProdDB3"]
+[schema_size.databases]
+DEV = ["DevDB1", "DevDB2", "DevDB3"]
+QA = ["QaDB1", "QaDB2"]
+TEST = ["TestDB1", "TestDB2"]
+STAGE = ["StageDB1", "StageDB2"]
+PROD = ["ProdDB1", "ProdDB2", "ProdDB3"]
 
 ######################################################################################
 [data_compare]
@@ -97,10 +108,10 @@ max_sql_in_values = 10000
 
 [[data_compare.compare_list]]
 name = "Example Comparison"
-left_connection = "DATA_COMPARE_LEFT_DB"
-right_connection = "DATA_COMPARE_RIGHT_DB"
+left_connection = "DEV_DB"
+right_connection = "QA_DB"
 left_db_type = "mssql"
-right_db_type = "pg"
+right_db_type = "mssql"
 schema_name = "dbo"      # Optional schema name for SQL output format
 table_name = "my_table"  # Optional table name for SQL output format
 left_query = """
@@ -110,9 +121,23 @@ right_query = """
 SELECT 1 AS column_one, 2 AS column_two
 """
 
+# Example comparing MSSQL to PostgreSQL
+[[data_compare.compare_list]]
+name = "Cross-DB Comparison"
+left_connection = "DEV_DB"
+right_connection = "PG_DEV_DB"
+left_db_type = "mssql"
+right_db_type = "pg"
+left_query = """
+SELECT id, name FROM dbo.Users
+"""
+right_query = """
+SELECT id, name FROM public.users
+"""
+
 ######################################################################################
 [data_cleanup]
-conn = "DATA_CLEANUP_DB"
+conn = "DEV_DB"
 database = "YourDatabaseName"
 schema = "dbo"
 table = "YourTableName"
@@ -137,7 +162,7 @@ WHERE DeleteFlag = 1
 
 ######################################################################################
 [db_diagram]
-connection_env_var = "DB_DIAGRAM_DB"
+conn = "DEV_DB"
 database = ""  # Optional: override database from connection string
 
 schema = "dbo"

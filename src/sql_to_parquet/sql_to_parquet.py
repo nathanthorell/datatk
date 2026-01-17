@@ -10,7 +10,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from sqlalchemy.engine import Engine
 
 from sql_to_parquet.sql_to_parquet_types import ExportConfig, ExportResult, SqlObject
-from utils import get_config, get_connection
+from utils import get_config, get_connection, modify_connection_for_database
 from utils.rich_utils import COLORS, align_columns, console, create_table
 
 
@@ -110,30 +110,61 @@ def print_results_summary(results: List[ExportResult], logging_level: str) -> No
                     console.print(f"[bold]{name}[/] {obj}: [red]{error}[/]")
 
 
+def get_output_directory(data_dir_config: str) -> Path:
+    """Convert data_dir config to absolute path and ensure it exists."""
+    if os.path.isabs(data_dir_config):
+        data_dir = data_dir_config
+    else:
+        project_root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        data_dir = os.path.join(project_root, data_dir_config.lstrip("./"))
+
+    data_dir_path = Path(data_dir)
+    data_dir_path.mkdir(parents=True, exist_ok=True)
+    return data_dir_path
+
+
+def print_final_statistics(results: List[ExportResult]) -> None:
+    """Print overall export statistics."""
+    successful = sum(1 for r in results if r.status == "Success")
+    failed = len(results) - successful
+    total_rows = sum(r.rows_processed for r in results)
+
+    console.print()
+    if failed == 0:
+        console.print(f"[bold green]✓ Successfully exported all {successful} objects[/]")
+        console.print(f"[bold green]Total rows: {total_rows:,}[/]")
+    else:
+        console.print(f"[bold yellow]⚠ Exported {successful} objects ({failed} failed)[/]")
+        console.print(f"[bold yellow]Total rows: {total_rows:,}[/]")
+
+    console.print()
+    console.rule("[bold cyan]Export Complete[/]")
+    console.print()
+
+
 def main() -> None:
     load_dotenv()
     tool_config = get_config("sql_to_parquet")
     export_config = ExportConfig.from_dict(tool_config)
+    data_dir_path = get_output_directory(export_config.data_dir)
 
-    # Convert data_dir to absolute path if it's relative
-    if not os.path.isabs(export_config.data_dir):
-        project_root = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-        data_dir = os.path.join(project_root, export_config.data_dir.lstrip("./"))
-    else:
-        data_dir = export_config.data_dir
+    # Get connection from config
+    conn_env_var = tool_config.get("conn")
+    if not conn_env_var:
+        raise ValueError("Connection variable 'conn' not defined in config")
 
-    # Ensure data directory exists
-    data_dir_path = Path(data_dir)
-    data_dir_path.mkdir(parents=True, exist_ok=True)
+    connection = get_connection(conn_env_var)
 
-    connection = get_connection("SQL_TO_PARQUET_DB")
+    database = tool_config.get("database")
+    if database:
+        connection = modify_connection_for_database(connection, database)
+
     engine = connection.get_sqlalchemy_engine()
 
     console.print()
     console.rule("[bold cyan]SQL to Parquet Export Tool[/]")
     console.print("[italic]Exporting SQL data to Parquet files[/]", justify="center")
     console.print()
-
     console.print(f"Server: [green]{connection.server}[/]")
     console.print(f"Database: [green]{connection.database}[/]")
     console.print(f"Output directory: [blue]{data_dir_path}[/]")
@@ -145,76 +176,63 @@ def main() -> None:
             console.print("[bold red]No objects defined in the configuration[/]")
             return
 
-        results = []
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[bold magenta]{task.description}"),
-            console=console,
-        ) as progress:
-            task = progress.add_task("• Initializing export process...", total=None)
-            progress.update(task, description="• Ready to begin export", completed=True)
-
-            console.print(f"Found [bold]{len(export_config.objects)}[/] objects to process")
-
-            # Process each object
-            for i, sql_object in enumerate(export_config.objects):
-                color = COLORS[i % len(COLORS)]
-
-                task = progress.add_task(
-                    f"• Processing [{color}]{sql_object.name}[/]...", total=None
-                )
-
-                if export_config.logging_level in ["verbose", "debug"]:
-                    console.print(f"\nName: [{color}]{sql_object.name}[/]")
-                    console.print(f"SQL Object: [{color}]{sql_object.object}[/]")
-
-                result = export_to_parquet(
-                    engine=engine,
-                    sql_object=sql_object,
-                    output_dir=data_dir_path,
-                    batch_size=export_config.batch_size,
-                    logging_level=export_config.logging_level,
-                )
-                results.append(result)
-
-                if export_config.logging_level in ["verbose", "debug"]:
-                    progress.start()
-
-                # Update progress display
-                status = "[green]✓ Done[/]" if result.status == "Success" else "[red]✗ Failed[/]"
-                progress.update(
-                    task,
-                    description=f"• {sql_object.name}: {status} ({result.rows_processed:,} rows)",
-                    completed=True,
-                )
-
+        results = process_exports(engine, export_config, data_dir_path)
         print_results_summary(results, export_config.logging_level)
 
         if export_config.logging_level not in ["verbose", "debug"]:
             console.print(" " * 100, end="\r")
 
-        # Print overall statistics
-        successful = sum(1 for r in results if r.status == "Success")
-        failed = len(results) - successful
-        total_rows = sum(r.rows_processed for r in results)
-
-        console.print()
-        if failed == 0:
-            console.print(f"[bold green]✓ Successfully exported all {successful} objects[/]")
-            console.print(f"[bold green]Total rows: {total_rows:,}[/]")
-        else:
-            console.print(f"[bold yellow]⚠ Exported {successful} objects ({failed} failed)[/]")
-            console.print(f"[bold yellow]Total rows: {total_rows:,}[/]")
-
-        console.print()
-        console.rule("[bold cyan]Export Complete[/]")
-        console.print()
+        print_final_statistics(results)
 
     except pyodbc.Error as ex:
         console.print(f"[bold red]Database error:[/] {ex}")
 
-    finally:
-        pass
+
+def process_exports(
+    engine: Engine, export_config: ExportConfig, data_dir_path: Path
+) -> List[ExportResult]:
+    """Process all configured exports with progress display."""
+    results: List[ExportResult] = []
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[bold magenta]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task("• Initializing export process...", total=None)
+        progress.update(task, description="• Ready to begin export", completed=True)
+
+        console.print(f"Found [bold]{len(export_config.objects)}[/] objects to process")
+
+        for i, sql_object in enumerate(export_config.objects):
+            color = COLORS[i % len(COLORS)]
+
+            task = progress.add_task(f"• Processing [{color}]{sql_object.name}[/]...", total=None)
+
+            if export_config.logging_level in ["verbose", "debug"]:
+                console.print(f"\nName: [{color}]{sql_object.name}[/]")
+                console.print(f"SQL Object: [{color}]{sql_object.object}[/]")
+
+            result = export_to_parquet(
+                engine=engine,
+                sql_object=sql_object,
+                output_dir=data_dir_path,
+                batch_size=export_config.batch_size,
+                logging_level=export_config.logging_level,
+            )
+            results.append(result)
+
+            if export_config.logging_level in ["verbose", "debug"]:
+                progress.start()
+
+            status = "[green]✓ Done[/]" if result.status == "Success" else "[red]✗ Failed[/]"
+            progress.update(
+                task,
+                description=f"• {sql_object.name}: {status} ({result.rows_processed:,} rows)",
+                completed=True,
+            )
+
+    return results
 
 
 if __name__ == "__main__":

@@ -4,7 +4,8 @@ from typing import Any, Dict, List, Union
 
 from dotenv import load_dotenv
 
-from utils import Connection, get_config, get_connection
+from utils import Connection, get_config, get_connection, modify_connection_for_database
+from utils.rich_utils import align_columns, console, create_table
 
 
 def get_default_for_date_type(
@@ -36,7 +37,7 @@ def execute_procedure(
     proc_name: str,
     defaults: Dict[str, Any],
     logging_level: str,
-) -> Dict[str, str]:
+) -> Dict[str, Any]:
     """
     Execute a single stored procedure with the given parameters.
 
@@ -90,7 +91,7 @@ def execute_procedure(
             start_time = time.time()
 
             if logging_level == "verbose":
-                print(f"Running: {exec_query}")
+                console.print(f"Running: {exec_query}")
 
             cursor.execute(exec_query)
 
@@ -98,25 +99,72 @@ def execute_procedure(
             elapsed_time = end_time - start_time
 
             if logging_level == "verbose":
-                print(f"Executed with arguments: {proc_args} in {elapsed_time:.2f} seconds")
+                console.print(f"Executed with arguments: {proc_args} in {elapsed_time:.2f} seconds")
 
             return {
                 "proc_name": proc_name,
                 "status": "success",
-                "elapsed_time": str(elapsed_time),
+                "elapsed_time": elapsed_time,
             }
 
         except Exception as e:
-            end_time = time.time()
             if logging_level in ["verbose", "errors_only"]:
-                print(f"Error executing {proc_name}: {e}")
+                console.print(f"[bold red]Error executing[/] [bold]{proc_name}[/]: {e}")
 
             return {
                 "proc_name": proc_name,
                 "status": "fail",
-                "elapsed_time": "",
+                "elapsed_time": None,
                 "error_message": str(e),
             }
+
+
+def print_results_summary(results: List[Dict[str, Any]], logging_level: str) -> None:
+    if logging_level == "summary":
+        console.print()
+        table = create_table(columns=["Procedure Name", "Status", "Time", "Error"])
+        align_columns(table, {"Time": "right"})
+
+        for result in results:
+            proc_name = result["proc_name"]
+            status = result["status"]
+            elapsed_time = f"{result['elapsed_time']:.2f}s" if result["elapsed_time"] else "N/A"
+            error_msg = result.get("error_message", "") or ""
+
+            status_styled = f"[green]{status}[/]" if status == "success" else f"[red]{status}[/]"
+            table.add_row(proc_name, status_styled, elapsed_time, error_msg)
+
+        console.print(table)
+
+        success_count = sum(1 for r in results if r["status"] == "success")
+        error_count = len(results) - success_count
+        console.print(
+            f"\nTotal: {len(results)} procedures | "
+            f"[green]Success: {success_count}[/] | "
+            f"[red]Errors: {error_count}[/]"
+        )
+
+    elif logging_level == "errors_only":
+        error_results = [r for r in results if r["status"] == "fail"]
+
+        if not error_results:
+            console.print("[green]No errors found.[/]")
+            return
+
+        console.print()
+        table = create_table(columns=["Procedure Name", "Time", "Error"])
+        align_columns(table, {"Time": "right"})
+
+        for result in error_results:
+            proc_name = result["proc_name"]
+            elapsed_time = f"{result['elapsed_time']:.2f}s" if result["elapsed_time"] else "N/A"
+            error_msg = result.get("error_message", "") or ""
+            table.add_row(proc_name, elapsed_time, error_msg)
+
+        console.print(table)
+        console.print(
+            f"\n[red]Found {len(error_results)} errors[/] out of {len(results)} procedures."
+        )
 
 
 def main() -> None:
@@ -127,17 +175,33 @@ def main() -> None:
     schema = usp_config["schema"]
     logging_level = usp_config["logging_level"]
 
-    connection = get_connection("USP_TEST_DB")
+    # Get connection from config
+    conn_env_var = usp_config.get("conn")
+    if not conn_env_var:
+        raise ValueError("Connection variable 'conn' not defined in config")
 
-    print(f"Executing script on server: [{connection.server}] in database: [{connection.database}]")
-    print(f"Using logging_level: {logging_level}\n")
+    connection = get_connection(conn_env_var)
+
+    # Optionally switch to a different database
+    database = usp_config.get("database")
+    if database:
+        connection = modify_connection_for_database(connection, database)
+
+    console.print()
+    console.rule("[bold cyan]Stored Procedure Tester[/]")
+    console.print(
+        f"Server: [bold]{connection.server}[/] | "
+        f"Database: [bold]{connection.database}[/] | "
+        f"Schema: [bold]{schema}[/]"
+    )
+    console.print(f"Logging level: [italic]{logging_level}[/]")
+    console.print()
 
     stored_procedures: List[str] = []
 
-    with connection.get_connection() as db_conn:
-        cursor = db_conn.cursor()
-        try:
-            # Fetch stored procedures in the given schema
+    try:
+        with connection.get_connection() as db_conn:
+            cursor = db_conn.cursor()
             query = f"""
             SELECT SPECIFIC_NAME
             FROM INFORMATION_SCHEMA.ROUTINES
@@ -148,29 +212,31 @@ def main() -> None:
             cursor.execute(query)
             stored_procedures = [proc[0] for proc in cursor.fetchall()]
 
-        except Exception as e:
-            print(f"Error fetching schema sizes: {e}")
+        if not stored_procedures:
+            console.print(f"[yellow]No stored procedures found in schema '{schema}'[/]")
+            return
 
-        results = []
-        for proc in stored_procedures:
-            proc_name = proc[0]
-            print(f"Executing stored procedure: [{proc_name}]")
+        console.print(f"Found [bold]{len(stored_procedures)}[/] stored procedures to test\n")
+
+        results: List[Dict[str, Any]] = []
+        for proc_name in stored_procedures:
+            if logging_level == "verbose":
+                console.print(f"Executing stored procedure: [bold]{proc_name}[/]")
 
             result = execute_procedure(connection, schema, proc_name, defaults, logging_level)
             results.append(result)
 
             if logging_level == "verbose":
-                print("")
+                console.print()
 
-        if logging_level == "summary":
-            print("Execution Summary:")
-            print(f"{'Procedure Name':<50} {'Status':<10} {'Execution Time':<15}")
-            print("-" * 76)
-            for result in results:
-                proc_name = result["proc_name"]
-                status = result["status"]
-                elapsed_time = f"{result['elapsed_time']:.2f}" if result["elapsed_time"] else "N/A"
-                print(f"{proc_name:<50} {status:<10} {elapsed_time:<15}")
+        print_results_summary(results, logging_level)
+
+    except Exception as ex:
+        console.print(f"[bold red]Database error:[/] {ex}")
+
+    console.print()
+    console.rule("[bold cyan]Complete[/]")
+    console.print()
 
 
 if __name__ == "__main__":

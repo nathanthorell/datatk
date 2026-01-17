@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional
 
-from utils import get_connection
+from utils import get_connection, modify_connection_for_database
 from utils.rich_utils import console
 
 DiagramFormat = Literal["dbml", "mermaid", "plantuml"]
@@ -17,7 +17,9 @@ class DiagramConfig:
         self.config = config
 
         # Database connection configuration
-        connection_var = config.get("connection_env_var", "DB_DIAGRAM_DB")
+        connection_var = config.get("conn")
+        if not connection_var:
+            raise ValueError("Connection variable 'conn' not defined in config")
         self.connection_var: str = connection_var
 
         # Schema configuration
@@ -76,8 +78,6 @@ class DiagramConfig:
 
         # Apply database override if specified
         if self.database:
-            from utils import modify_connection_for_database
-
             self.connection = modify_connection_for_database(self.connection, self.database)
 
     @property
