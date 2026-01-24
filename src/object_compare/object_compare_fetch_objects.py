@@ -29,7 +29,7 @@ def fetch_definitions(
 
     result = {}
 
-    with conn.get_connection() as db_conn:
+    with conn.connect() as db_conn:
         cursor = db_conn.cursor()
         try:
             cursor.execute(query)

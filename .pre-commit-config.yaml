@@ -35,4 +35,5 @@ repos:
             sqlalchemy,
             types-psycopg2,
             pydbml,
+            pydantic,
           ]

@@ -6,7 +6,7 @@ logging_level = "summary" # "verbose", "errors_only", or "summary"
 [object_compare]
 schema = "report"
 database = "ExampleDb" # Optional, switches from whatever db is in conn to this db
-db_type = "mssql" # Optional, defaults to mssql, accepts mssql or postgres
+db_type = "mssql" # Optional, defaults to mssql, accepts mssql, postgres, or databricks
 object_types = [
     "stored_proc",
     "view",
@@ -123,16 +123,30 @@ SELECT 1 AS column_one, 2 AS column_two
 
 # Example comparing MSSQL to PostgreSQL
 [[data_compare.compare_list]]
-name = "Cross-DB Comparison"
+name = "MSSQL to PostgreSQL"
 left_connection = "DEV_DB"
 right_connection = "PG_DEV_DB"
 left_db_type = "mssql"
-right_db_type = "pg"
+right_db_type = "postgres"
 left_query = """
 SELECT id, name FROM dbo.Users
 """
 right_query = """
 SELECT id, name FROM public.users
+"""
+
+# Example comparing MSSQL to Databricks
+[[data_compare.compare_list]]
+name = "MSSQL to Databricks"
+left_connection = "DEV_DB"
+right_connection = "DBX_DEV"
+left_db_type = "mssql"
+right_db_type = "databricks"
+left_query = """
+SELECT id, name FROM dbo.Users
+"""
+right_query = """
+SELECT id, name FROM default.users
 """
 
 ######################################################################################

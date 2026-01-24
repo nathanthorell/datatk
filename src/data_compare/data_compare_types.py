@@ -8,7 +8,7 @@ import pyodbc
 from rich.pretty import Pretty
 from rich.table import Table
 
-from utils import Connection, get_connection, modify_connection_for_database
+from utils import Connection, load_connection, modify_connection_for_database
 from utils.rich_utils import COLORS, console
 
 ConnectionType = Union[pyodbc.Connection, "psycopg2.extensions.connection"]
@@ -413,10 +413,10 @@ class ComparisonConfig:
                 raise ValueError(f"Comparison '{item['name']}' is missing a right query")
 
             # Get base connections
-            left_conn = get_connection(
+            left_conn = load_connection(
                 item["left_connection"], db_type=item.get("left_db_type", "mssql")
             )
-            right_conn = get_connection(
+            right_conn = load_connection(
                 item["right_connection"], db_type=item.get("right_db_type", "mssql")
             )
 

@@ -33,7 +33,7 @@ def fetch_schema_sizes(conn: Connection) -> List[SchemaSize]:
     ORDER BY TotalSizeBytes DESC;
     """
 
-    with conn.get_connection() as db_conn:
+    with conn.connect() as db_conn:
         cursor = db_conn.cursor()
         try:
             cursor.execute(query)

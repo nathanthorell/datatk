@@ -21,7 +21,6 @@ def execute_sql_query(
 
     query_preview = sql_query[:50].replace("\n", " ") + ("..." if len(sql_query) > 50 else "")
     console.print(f"[dim]Executing query:[/] [blue]{query_preview}[/]", end="\r")
-
     try:
         engine = conn.get_sqlalchemy_engine()
         df = pd.read_sql_query(sql_query, engine, params=params)

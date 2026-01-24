@@ -11,7 +11,7 @@ from schema_size.schema_size_types import (
 from schema_size.schema_size_utils import process_server
 from utils import (
     get_config,
-    get_connection,
+    load_connection,
 )
 from utils.rich_utils import align_columns, console, create_table
 
@@ -129,7 +129,7 @@ def main() -> None:
 
     connections = {}
     for server_name, env_var_name in env_variables.items():
-        connections[server_name] = get_connection(env_var_name)
+        connections[server_name] = load_connection(env_var_name)
 
     server_results = {}
     for server_name, server_config in server_configs.items():

@@ -1,6 +1,6 @@
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from utils.connection_utils import Connection
+from utils.connection_models import Connection
 from utils.db_util_types import (
     DbColumn,
     DbTable,
@@ -19,7 +19,7 @@ class MetadataService:
     def __init__(self, connection: Connection):
         self.connection = connection
 
-    def get_table_columns(self, table: DbTable) -> List[DbColumn]:
+    def get_table_columns(self, table: DbTable) -> list[DbColumn]:
         """Get all columns for a table with their data types"""
         query = f"""
         SELECT
@@ -34,7 +34,7 @@ class MetadataService:
         ORDER BY ORDINAL_POSITION
         """
         columns = []
-        with self.connection.get_connection() as db_conn:
+        with self.connection.connect() as db_conn:
             cursor = db_conn.cursor()
             try:
                 cursor.execute(query)
@@ -53,7 +53,7 @@ class MetadataService:
         table.all_columns = columns
         return columns
 
-    def get_primary_key(self, table: DbTable) -> Optional[PrimaryKey]:
+    def get_primary_key(self, table: DbTable) -> PrimaryKey | None:
         """Get the primary key for a table"""
         query = f"""
         SELECT
@@ -74,7 +74,7 @@ class MetadataService:
         """
 
         pk = None
-        with self.connection.get_connection() as db_conn:
+        with self.connection.connect() as db_conn:
             cursor = db_conn.cursor()
             try:
                 cursor.execute(query)
@@ -109,7 +109,7 @@ class MetadataService:
             table.primary_key = pk
         return pk
 
-    def get_foreign_keys(self, table: DbTable) -> Dict[str, ForeignKey]:
+    def get_foreign_keys(self, table: DbTable) -> dict[str, ForeignKey]:
         """Get foreign keys for a table using system catalog views"""
         query = f"""
         SELECT
@@ -137,7 +137,7 @@ class MetadataService:
         foreign_keys = {}
         fk_data = {}
 
-        with self.connection.get_connection() as db_conn:
+        with self.connection.connect() as db_conn:
             cursor = db_conn.cursor()
             try:
                 cursor.execute(query)
@@ -200,7 +200,7 @@ class MetadataService:
         table.foreign_keys.update(foreign_keys)
         return foreign_keys
 
-    def get_unique_keys(self, table: DbTable) -> Dict[str, UniqueKey]:
+    def get_unique_keys(self, table: DbTable) -> dict[str, UniqueKey]:
         """Get unique keys for a table"""
         query = f"""
         SELECT DISTINCT
@@ -222,7 +222,7 @@ class MetadataService:
         """
 
         unique_keys = {}
-        with self.connection.get_connection() as db_conn:
+        with self.connection.connect() as db_conn:
             cursor = db_conn.cursor()
             try:
                 cursor.execute(query)
@@ -274,7 +274,7 @@ class MetadataService:
         """
 
         data_type = ""
-        with self.connection.get_connection() as db_conn:
+        with self.connection.connect() as db_conn:
             cursor = db_conn.cursor()
             try:
                 cursor.execute(query)
@@ -365,7 +365,7 @@ class MetadataService:
         ORDER BY hierarchy_level, foreign_key_name, parent_column;
         """
 
-    def _process_hierarchy_rows(self, rows: list[Any]) -> Dict[str, Dict[str, Any]]:
+    def _process_hierarchy_rows(self, rows: list[Any]) -> dict[str, dict[str, Any]]:
         """Process hierarchy query results and group by foreign key name"""
         fk_groups = {}
 
@@ -507,7 +507,7 @@ class MetadataService:
         hierarchy_paths[root_key] = root_table.full_table_name()
 
         try:
-            with self.connection.get_connection() as db_conn:
+            with self.connection.connect() as db_conn:
                 cursor = db_conn.cursor()
                 cursor.execute(query)
                 rows = cursor.fetchall()

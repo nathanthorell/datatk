@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 from dotenv import load_dotenv
 
-from utils import Connection, get_config, get_connection, modify_connection_for_database
+from utils import Connection, get_config, load_connection, modify_connection_for_database
 from utils.rich_utils import align_columns, console, create_table
 
 
@@ -15,7 +15,7 @@ def fetch_views(conn: Connection, schema: str) -> List[str]:
     WHERE TABLE_SCHEMA = '{schema}'
     ORDER BY TABLE_NAME;
     """
-    with conn.get_connection() as db_conn:
+    with conn.connect() as db_conn:
         cursor = db_conn.cursor()
         try:
             cursor = db_conn.cursor()
@@ -38,7 +38,7 @@ def execute_view(
         "error_message": None,
     }
 
-    with conn.get_connection() as db_conn:
+    with conn.connect() as db_conn:
         cursor = db_conn.cursor()
         try:
             start_time = time.time()
@@ -147,7 +147,7 @@ def main() -> None:
     if not conn_env_var:
         raise ValueError("Connection variable 'conn' not defined in config")
 
-    connection = get_connection(conn_env_var)
+    connection = load_connection(conn_env_var)
 
     # Optionally switch to a different database
     database = view_config.get("database")

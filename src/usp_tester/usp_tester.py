@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Union
 
 from dotenv import load_dotenv
 
-from utils import Connection, get_config, get_connection, modify_connection_for_database
+from utils import Connection, get_config, load_connection, modify_connection_for_database
 from utils.rich_utils import align_columns, console, create_table
 
 
@@ -48,7 +48,7 @@ def execute_procedure(
     :param logging_level: Expects a string value ("verbose", "errors_only", or "summary").
     """
 
-    with conn.get_connection() as db_conn:
+    with conn.connect() as db_conn:
         cursor = db_conn.cursor()
         try:
             # Fetch parameters for the stored procedure
@@ -180,7 +180,7 @@ def main() -> None:
     if not conn_env_var:
         raise ValueError("Connection variable 'conn' not defined in config")
 
-    connection = get_connection(conn_env_var)
+    connection = load_connection(conn_env_var)
 
     # Optionally switch to a different database
     database = usp_config.get("database")
@@ -200,7 +200,7 @@ def main() -> None:
     stored_procedures: List[str] = []
 
     try:
-        with connection.get_connection() as db_conn:
+        with connection.connect() as db_conn:
             cursor = db_conn.cursor()
             query = f"""
             SELECT SPECIFIC_NAME

@@ -16,6 +16,7 @@ dependencies = [
     "pandas",
     "pyarrow",
     "pydbml",
+    "pydantic>=2.12",
 ]
 
 [project.optional-dependencies]
@@ -77,3 +78,6 @@ ignore_missing_imports = true
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
+
+[tool.ty.rules]
+unused-ignore-comment = 'ignore'

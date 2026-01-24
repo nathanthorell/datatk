@@ -1,6 +1,6 @@
 from typing import Any, Dict, Set
 
-from utils import get_connection, modify_connection_for_database
+from utils import load_connection, modify_connection_for_database
 from utils.rich_utils import console
 
 
@@ -61,7 +61,7 @@ class CleanupConfig:
             self.disable_fk_tables.add(normalized_name)
 
         # connection setup
-        self.connection = get_connection(self.connection_var)
+        self.connection = load_connection(self.connection_var)
         self.connection = modify_connection_for_database(self.connection, self.database)
 
     def should_disable_foreign_keys(self, schema_name: str, table_name: str) -> bool:

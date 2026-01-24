@@ -13,7 +13,7 @@ from object_compare.object_compare_utils import (
     ComparisonResult,
     print_comparison_result,
 )
-from utils import Connection, get_config, get_connection, modify_connection_for_database
+from utils import Connection, get_config, load_connection, modify_connection_for_database
 from utils.rich_utils import console
 
 
@@ -103,7 +103,7 @@ def main() -> None:
 
     for env_name, env_var in environments.items():
         try:
-            connections[env_name] = get_connection(env_var, db_type=db_type)
+            connections[env_name] = load_connection(env_var, db_type=db_type)
             if database is not None:
                 connections[env_name] = modify_connection_for_database(
                     connections[env_name], database_name=database

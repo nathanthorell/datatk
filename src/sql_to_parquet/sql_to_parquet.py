@@ -10,7 +10,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from sqlalchemy.engine import Engine
 
 from sql_to_parquet.sql_to_parquet_types import ExportConfig, ExportResult, SqlObject
-from utils import get_config, get_connection, modify_connection_for_database
+from utils import get_config, load_connection, modify_connection_for_database
 from utils.rich_utils import COLORS, align_columns, console, create_table
 
 
@@ -153,7 +153,7 @@ def main() -> None:
     if not conn_env_var:
         raise ValueError("Connection variable 'conn' not defined in config")
 
-    connection = get_connection(conn_env_var)
+    connection = load_connection(conn_env_var)
 
     database = tool_config.get("database")
     if database:

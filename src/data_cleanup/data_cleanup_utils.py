@@ -22,7 +22,7 @@ from utils.rich_utils import console, create_table
 
 def fetch_ids(config: CleanupConfig) -> List[Any]:
     """Execute a query to get the target IDs for deletion"""
-    with config.connection.get_connection() as conn:
+    with config.connection.connect() as conn:
         cursor = conn.cursor()
         cursor.execute(config.query_of_cleanup_pk_values)
         return [row[0] for row in cursor.fetchall()]
@@ -259,7 +259,7 @@ def _find_child_primary_keys_single_query(
     """
 
     child_pk_values = set()
-    with service.connection.get_connection() as conn:
+    with service.connection.connect() as conn:
         cursor = conn.cursor()
         try:
             cursor.execute(query)
@@ -406,7 +406,7 @@ def _process_child_records_in_batches(
 def _execute_referenced_values_query(service: MetadataService, query: str) -> List[tuple[Any, ...]]:
     """Execute a query to get referenced column values"""
     result_values = []
-    with service.connection.get_connection() as conn:
+    with service.connection.connect() as conn:
         cursor = conn.cursor()
         try:
             cursor.execute(query)
@@ -743,7 +743,7 @@ def execute_cleanup(
 
     console.print("[bold]Executing cleanup operations...[/]")
 
-    with config.connection.get_connection() as conn:
+    with config.connection.connect() as conn:
         cursor = conn.cursor()
         try:
             cursor.execute("BEGIN TRANSACTION")
