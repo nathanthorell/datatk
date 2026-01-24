@@ -7,10 +7,10 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.text import Text
 
-from object_compare import (
+from object_compare.object_compare_fetch_objects import fetch_definitions
+from object_compare.object_compare_utils import (
     ChecksumData,
     ComparisonResult,
-    fetch_definitions,
     print_comparison_result,
 )
 from utils import Connection, get_config, get_connection, modify_connection_for_database

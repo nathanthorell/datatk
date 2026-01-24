@@ -1,10 +1,9 @@
 from typing import Dict
 
+import object_compare.object_compare_fetch_mssql as mssql
+import object_compare.object_compare_fetch_pg as pg
 from utils import Connection
 from utils.rich_utils import console
-
-from . import object_compare_fetch_mssql as mssql
-from . import object_compare_fetch_pg as pg
 
 
 def fetch_definitions(

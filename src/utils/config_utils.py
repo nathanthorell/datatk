@@ -1,7 +1,6 @@
 import os
+import tomllib
 from typing import Any, Dict, Optional
-
-import toml
 
 
 def get_config(tool_name: str, config_path: Optional[str] = None) -> Dict[str, Any]:
@@ -14,8 +13,8 @@ def get_config(tool_name: str, config_path: Optional[str] = None) -> Dict[str, A
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found at {config_path}")
 
-    with open(config_path, "r") as f:
-        config = toml.load(f)
+    with open(config_path, "rb") as f:
+        config = tomllib.load(f)
 
     if tool_name not in config:
         raise KeyError(f"Configuration for '{tool_name}' not found in config file")

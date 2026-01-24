@@ -4,7 +4,7 @@ A collection of utility tools for working with various dialects of SQL databases
 
 ## Features
 
-- **Object Comparison Tool** (`object_compare`): Compare database object definitions across multiple environments (DEV, QA, UAT, PROD)
+- **Object Comparison Tool** (`object_compare`): Compare database object definitions across multiple environments (DEV, QA, TEST, PROD)
   - **Database Support**: MSSQL and PostgreSQL
   - **Object Types**: stored procedures, views, functions, tables, triggers, sequences, indexes, types, extensions (PostgreSQL), external tables (MSSQL), and foreign keys
   - Identify exclusive objects that exist in only one environment
@@ -26,7 +26,7 @@ A collection of utility tools for working with various dialects of SQL databases
   - Results are displayed with customizable detail levels based on logging preferences.
 
 - **Data Compare** (`data_compare`): Compare data across different database platforms
-  - Support for MSSQL and PostgreSQL databases
+  - Support for MSSQL, PostgreSQL, and Databricks databases
   - Compare data using custom SQL queries
   - Option to use query files for complex comparisons
   - Flexible output options: left_only, right_only, common, differences, or all
@@ -50,6 +50,7 @@ A collection of utility tools for working with various dialects of SQL databases
 
     - ODBC Driver for SQL Server (for MSSQL databases)
     - PostgreSQL drivers (for PostgreSQL databases)
+    - Databricks SQL Connector (for Databricks, installed automatically via dependencies)
 
 ### Setup
 
@@ -114,7 +115,7 @@ cp config-example.toml config.toml
 - **USP Tester**: Configure the schema, logging level, and default parameter values for stored procedures
 - **View Tester**: Configure the schema and logging level
 - **Schema Size**: Configure the server connections, databases to compare, and logging level
-- **Data Compare**: Configure named comparison pairs with left/right database connections, database types (MSSQL/PostgreSQL), and queries or query files to compare
+- **Data Compare**: Configure named comparison pairs with left/right database connections, database types (MSSQL/PostgreSQL/Databricks), and queries or query files to compare
 - **Database Diagram Generator**: Configure the connection, schema, column display mode, diagram format, and output settings
 
 ## Usage
@@ -181,7 +182,7 @@ This will:
 uv run data_compare
 ```
 
-1. Connect to the configured database sources (supports both MSSQL and PostgreSQL)
+1. Connect to the configured database sources (supports MSSQL, PostgreSQL, and Databricks)
 1. Execute the defined queries against both data sources
 1. Compare the results of both queries
 1. Generate a detailed report of matching and non-matching data

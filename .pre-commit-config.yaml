@@ -27,9 +27,7 @@ repos:
         additional_dependencies:
           [
             pyodbc,
-            toml,
             python-dotenv,
-            types-toml,
             prettytable,
             rich,
             pandas,

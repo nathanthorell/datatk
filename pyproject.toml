@@ -1,6 +1,6 @@
 [project]
 name = "sql-tools"
-version = "0.0.3"
+version = "0.0.4"
 description = "A collection of utility tools for working with various dialects of SQL databases."
 license = { file = "LICENSE" }
 readme = "README.md"
@@ -8,9 +8,10 @@ requires-python = ">=3.13"
 dependencies = [
     "pyodbc",
     "psycopg2-binary",
+    "databricks-sql-connector",
+    "databricks-sqlalchemy",
     "python-dotenv",
     "rich",
-    "toml",
     "sqlalchemy",
     "pandas",
     "pyarrow",
@@ -18,7 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["ruff", "mypy", "types-toml", "pandas-stubs", "types-psycopg2"]
+dev = ["ruff", "mypy", "pandas-stubs", "types-psycopg2"]
 
 [project.scripts]
 object_compare = "object_compare.object_compare:main"
@@ -70,7 +71,7 @@ namespace_packages = true
 exclude = ["temp/.*"]
 
 [[tool.mypy.overrides]]
-module = ["pyodbc", "pydbml", "pydbml.*"]
+module = ["pyodbc", "pydbml", "pydbml.*", "databricks", "databricks.*"]
 ignore_missing_imports = true
 
 [tool.pyright]
