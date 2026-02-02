@@ -1,42 +1,60 @@
-from dataclasses import dataclass
-from typing import Dict, List
+from dataclasses import dataclass, field
 
 
 @dataclass
-class ServerDatabases:
-    server_name: str
-    databases: List[str]
+class TableSize:
+    """Size metrics for a single table."""
 
-    def __str__(self) -> str:
-        return f"{self.server_name}: {len(self.databases)} databases"
-
-
-@dataclass
-class SchemaSize:
-    schema_name: str
-    total_rows: int
+    table_name: str
+    row_count: int
     total_bytes: float
-    used_bytes: float
-    unused_bytes: float
+    data_bytes: float
+    index_bytes: float
 
     @property
     def total_formatted(self) -> str:
         return format_size(self.total_bytes)
 
     @property
-    def used_formatted(self) -> str:
-        return format_size(self.used_bytes)
+    def data_formatted(self) -> str:
+        return format_size(self.data_bytes)
 
     @property
-    def unused_formatted(self) -> str:
-        return format_size(self.unused_bytes)
+    def index_formatted(self) -> str:
+        return format_size(self.index_bytes)
+
+
+@dataclass
+class SchemaSize:
+    """Size metrics for a schema."""
+
+    schema_name: str
+    total_rows: int
+    total_bytes: float
+    data_bytes: float
+    index_bytes: float
+    tables: list[TableSize] | None = None  # Populated in detail mode
+
+    @property
+    def total_formatted(self) -> str:
+        return format_size(self.total_bytes)
+
+    @property
+    def data_formatted(self) -> str:
+        return format_size(self.data_bytes)
+
+    @property
+    def index_formatted(self) -> str:
+        return format_size(self.index_bytes)
 
 
 @dataclass
 class DatabaseSize:
+    """Aggregated size metrics for a database."""
+
     total_bytes: float
-    used_bytes: float
-    unused_bytes: float
+    data_bytes: float
+    index_bytes: float
     total_rows: int = 0
 
     @property
@@ -44,27 +62,29 @@ class DatabaseSize:
         return format_size(self.total_bytes)
 
     @property
-    def used_formatted(self) -> str:
-        return format_size(self.used_bytes)
+    def data_formatted(self) -> str:
+        return format_size(self.data_bytes)
 
     @property
-    def unused_formatted(self) -> str:
-        return format_size(self.unused_bytes)
+    def index_formatted(self) -> str:
+        return format_size(self.index_bytes)
 
 
 @dataclass
 class ServerResults:
+    """Results for all databases on a server/environment."""
+
     server_name: str
-    databases: Dict[str, DatabaseSize]
+    databases: dict[str, DatabaseSize] = field(default_factory=dict)
 
     @property
     def total_size(self) -> DatabaseSize:
         """Calculate the total size across all databases."""
         total_bytes = sum(db.total_bytes for db in self.databases.values())
-        used_bytes = sum(db.used_bytes for db in self.databases.values())
-        unused_bytes = sum(db.unused_bytes for db in self.databases.values())
+        data_bytes = sum(db.data_bytes for db in self.databases.values())
+        index_bytes = sum(db.index_bytes for db in self.databases.values())
         total_rows = sum(db.total_rows for db in self.databases.values())
-        return DatabaseSize(total_bytes, used_bytes, unused_bytes, total_rows)
+        return DatabaseSize(total_bytes, data_bytes, index_bytes, total_rows)
 
 
 def format_size(size_bytes: float, decimal_places: int = 2) -> str:

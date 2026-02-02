@@ -137,11 +137,26 @@ class SqlToParquetConfig(BaseModel):
     logging_level: Literal["verbose", "summary", "errors_only"] | None = None
 
 
+class SchemaSizeEnvironment(BaseModel):
+    """A single environment to analyze in schema_size."""
+
+    name: str
+    conn: str
+    databases: list[str]
+    schemas: list[str] | None = None  # Optional filter of schemas
+
+
 class SchemaSizeConfig(BaseModel):
     """Configuration for the schema_size tool."""
 
-    connections: dict[str, str]
-    databases: dict[str, list[str]]
+    mode: Literal["summary", "detail"] = "summary"
+    db_type: Literal["mssql", "postgres"] = "mssql"
+    environments: list[SchemaSizeEnvironment]
+
+    # Detail mode options (ignored in summary mode)
+    sort_by: Literal["data_size", "row_count", "index_size", "total_size"] = "data_size"
+    top_n: int = 50
+
     logging_level: Literal["verbose", "summary", "errors_only"] | None = None
 
 

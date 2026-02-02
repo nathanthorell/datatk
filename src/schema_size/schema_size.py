@@ -1,146 +1,178 @@
-from typing import Dict, List
+"""Schema size analysis tool for analyzing database storage metrics."""
 
 from dotenv import load_dotenv
 
 from schema_size.schema_size_types import (
     SchemaSize,
-    ServerDatabases,
     ServerResults,
-    format_size,
 )
-from schema_size.schema_size_utils import process_server
-from utils import (
-    get_config,
-    load_connection,
+from schema_size.schema_size_utils import (
+    process_environment_detail,
+    process_environment_summary,
 )
+from utils import get_config, load_connection
+from utils.config_models import SchemaSizeConfig
 from utils.rich_utils import align_columns, console, create_table
 
 
-def print_schema_table(schema_sizes: List[SchemaSize], server_name: str, db_name: str) -> None:
-    """Print a table of schema sizes for a specific database."""
-    table = create_table(columns=["Schema", "Row Count", "Total Size", "Used Size", "Unused Size"])
-
-    align_columns(
-        table,
-        {"Row Count": "right", "Total Size": "right", "Used Size": "right", "Unused Size": "right"},
-    )
-
-    for schema in schema_sizes:
-        table.add_row(
-            schema.schema_name,
-            f"{schema.total_rows:,}",
-            schema.total_formatted,
-            schema.used_formatted,
-            schema.unused_formatted,
-        )
-
-    total_rows = sum(schema.total_rows for schema in schema_sizes)
-    total_bytes = sum(schema.total_bytes for schema in schema_sizes)
-    used_bytes = sum(schema.used_bytes for schema in schema_sizes)
-    unused_bytes = sum(schema.unused_bytes for schema in schema_sizes)
-
-    console.print(f"\nSchema Sizes for [{server_name}].[{db_name}]:\n")
-    console.print(table)
-    console.print(
-        f"Database Total: {format_size(total_bytes)} "
-        f"(Used: {format_size(used_bytes)}, "
-        f"Unused: {format_size(unused_bytes)}, "
-        f"Rows: {total_rows:,})\n"
-    )
-    console.rule()
-
-
-def print_server_summary(server_results: Dict[str, ServerResults]) -> None:
-    """Print a summary table of all server results."""
+def print_summary_tables(env_results: dict[str, ServerResults]) -> None:
+    """Print summary tables for all environments."""
+    # Database-level summary table
     summary_table = create_table(
-        columns=["Server", "Database", "Row Count", "Total Size", "Used Size", "Unused Size"]
+        columns=["Environment", "Database", "Row Count", "Total Size", "Data Size", "Index Size"]
     )
 
     align_columns(
         summary_table,
-        {"Row Count": "right", "Total Size": "right", "Used Size": "right", "Unused Size": "right"},
+        {
+            "Row Count": "right",
+            "Total Size": "right",
+            "Data Size": "right",
+            "Index Size": "right",
+        },
     )
 
-    # Create totals table for server summaries
+    # Environment totals table
     totals_table = create_table(
-        columns=["Server", "Row Count", "Total Size", "Used Size", "Unused Size"]
+        columns=["Environment", "Row Count", "Total Size", "Data Size", "Index Size"]
     )
 
     align_columns(
         totals_table,
-        {"Row Count": "right", "Total Size": "right", "Used Size": "right", "Unused Size": "right"},
+        {
+            "Row Count": "right",
+            "Total Size": "right",
+            "Data Size": "right",
+            "Index Size": "right",
+        },
     )
 
-    # Fill tables with data
-    for server_name, results in server_results.items():
-        # Add each database to the summary table
+    for env_name, results in env_results.items():
         for db_name, db_size in results.databases.items():
             summary_table.add_row(
-                server_name,
+                env_name,
                 db_name,
                 f"{db_size.total_rows:,}",
                 db_size.total_formatted,
-                db_size.used_formatted,
-                db_size.unused_formatted,
+                db_size.data_formatted,
+                db_size.index_formatted,
             )
 
-        # Add server total to the totals table
-        server_total = results.total_size
+        env_total = results.total_size
         totals_table.add_row(
-            server_name,
-            f"{server_total.total_rows:,}",
-            server_total.total_formatted,
-            server_total.used_formatted,
-            server_total.unused_formatted,
+            env_name,
+            f"{env_total.total_rows:,}",
+            env_total.total_formatted,
+            env_total.data_formatted,
+            env_total.index_formatted,
         )
 
     console.print("\nDatabase Size Summary:")
     console.print(summary_table)
-    console.print("\nServer Totals:")
+    console.print("\nEnvironment Totals:")
     console.print(totals_table)
+
+
+def print_detail_tables(
+    env_name: str,
+    db_results: dict[str, list[SchemaSize]],
+    sort_by: str,
+    top_n: int,
+) -> None:
+    """Print detailed table-level breakdown for an environment."""
+    for db_name, schemas in db_results.items():
+        console.print(f"\n[bold]Table Details for [{env_name}].[{db_name}][/]")
+        console.print(f"[dim]Sorted by: {sort_by}, Top {top_n} per schema[/]\n")
+
+        for schema in schemas:
+            if not schema.tables:
+                continue
+
+            console.print(f"[cyan]Schema: {schema.schema_name}[/]")
+            console.print(
+                f"[dim]Total: {schema.total_formatted} "
+                f"(Data: {schema.data_formatted}, Index: {schema.index_formatted}, "
+                f"Rows: {schema.total_rows:,})[/]\n"
+            )
+
+            table = create_table(
+                columns=["Table", "Row Count", "Total Size", "Data Size", "Index Size"]
+            )
+
+            align_columns(
+                table,
+                {
+                    "Row Count": "right",
+                    "Total Size": "right",
+                    "Data Size": "right",
+                    "Index Size": "right",
+                },
+            )
+
+            for tbl in schema.tables:
+                table.add_row(
+                    tbl.table_name,
+                    f"{tbl.row_count:,}",
+                    tbl.total_formatted,
+                    tbl.data_formatted,
+                    tbl.index_formatted,
+                )
+
+            console.print(table)
+            console.print()
+
+
+def run_summary_mode(config: SchemaSizeConfig) -> None:
+    """Run the tool in summary mode, showing schema-level aggregates."""
+    logging_level = config.logging_level or "summary"
+
+    env_results: dict[str, ServerResults] = {}
+
+    for env in config.environments:
+        connection = load_connection(env.conn)
+        results = process_environment_summary(env, connection, config.db_type, logging_level)
+        env_results[env.name] = results
+
+    print_summary_tables(env_results)
+
+
+def run_detail_mode(config: SchemaSizeConfig) -> None:
+    """Run the tool in detail mode, showing table-level breakdown."""
+    for env in config.environments:
+        connection = load_connection(env.conn)
+        db_results = process_environment_detail(
+            env, connection, config.db_type, config.sort_by, config.top_n
+        )
+        print_detail_tables(env.name, db_results, config.sort_by, config.top_n)
 
 
 def main() -> None:
     """Main entry point for schema size analysis tool."""
     load_dotenv()
-    schema_size_config = get_config("schema_size")
-    env_variables = schema_size_config["connections"]
-    databases_config = schema_size_config["databases"]
-    logging_level = schema_size_config.get("logging_level", "verbose")
+
+    raw_config = get_config("schema_size")
+    config = SchemaSizeConfig(**raw_config)
 
     console.print()
     console.rule("[bold cyan]SQL Schema Size Analysis[/]")
     console.print("[italic]Analyzing database and schema storage metrics[/]", justify="center")
     console.print()
 
-    server_configs = {}
-    for server_name in env_variables:
-        if server_name in databases_config:
-            server_configs[server_name] = ServerDatabases(
-                server_name=server_name, databases=databases_config[server_name]
-            )
+    console.print(f"Mode: [bold]{config.mode}[/] | DB Type: [bold]{config.db_type}[/]")
+    console.print(f"Environments: [bold]{len(config.environments)}[/]")
+    for env in config.environments:
+        schema_info = f", schemas: {env.schemas}" if env.schemas else ""
+        console.print(f"  [green]{env.name}[/] - {len(env.databases)} databases{schema_info}")
+    console.print()
 
-    if not server_configs:
-        console.print("[bold red]WARNING:[/] No valid server configurations found in config file")
+    if config.mode == "detail":
+        console.print(
+            f"Detail options: sort_by=[bold]{config.sort_by}[/], top_n=[bold]{config.top_n}[/]"
+        )
+        console.print()
+        run_detail_mode(config)
     else:
-        console.print(f"Found [bold]{len(server_configs)}[/] server configurations")
-        for name, config in server_configs.items():
-            console.print(f" [green]{name}[/] - {config}")
-
-    connections = {}
-    for server_name, env_var_name in env_variables.items():
-        connections[server_name] = load_connection(env_var_name)
-
-    server_results = {}
-    for server_name, server_config in server_configs.items():
-        if server_name in connections:
-            connection = connections[server_name]
-            results = process_server(server_config, connection, logging_level)
-            server_results[server_name] = results
-        else:
-            console.print(f"[yellow]Warning:[/] No connection defined for server {server_name}")
-
-    print_server_summary(server_results)
+        run_summary_mode(config)
 
     console.print()
     console.rule("[bold cyan]Analysis Complete[/]")

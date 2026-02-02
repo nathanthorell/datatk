@@ -83,20 +83,49 @@ object = "Employees"
 filter = "Department = 'Engineering'"
 
 ######################################################################################
+# Schema Size
+# Analyze multiple environments to show schema-level aggregates
 [schema_size]
-[schema_size.connections]
-DEV = "DEV_DB"
-QA = "QA_DB"
-TEST = "TEST_DB"
-STAGE = "STAGE_DB"
-PROD = "PROD_DB"
+mode = "summary"  # "summary" or "detail"
+db_type = "mssql"  # "mssql" or "postgres"
 
-[schema_size.databases]
-DEV = ["DevDB1", "DevDB2", "DevDB3"]
-QA = ["QaDB1", "QaDB2"]
-TEST = ["TestDB1", "TestDB2"]
-STAGE = ["StageDB1", "StageDB2"]
-PROD = ["ProdDB1", "ProdDB2", "ProdDB3"]
+# Detail Mode options (ignored in Summary Mode)
+sort_by = "data_size"  # data_size, row_count, index_size, total_size
+top_n = 50
+
+[[schema_size.environments]]
+name = "DEV"
+conn = "DEV_DB"
+databases = ["DevDB1", "DevDB2", "DevDB3"]
+
+[[schema_size.environments]]
+name = "QA"
+conn = "QA_DB"
+databases = ["QaDB1", "QaDB2"]
+
+[[schema_size.environments]]
+name = "TEST"
+conn = "TEST_DB"
+databases = ["TestDB1", "TestDB2"]
+
+[[schema_size.environments]]
+name = "PROD"
+conn = "PROD_DB"
+databases = ["ProdDB1", "ProdDB2", "ProdDB3"]
+
+# Detail Mode Example
+# Deep dive into specific schema, shows table-level breakdown
+# [schema_size]
+# mode = "detail"
+# db_type = "mssql"
+# sort_by = "data_size"
+# top_n = 50
+
+# [[schema_size.environments]]
+# name = "DEV Analysis"
+# conn = "DEV_DB"
+# databases = ["DevDB1"]
+# schemas = ["dbo"]
 
 ######################################################################################
 [data_compare]
