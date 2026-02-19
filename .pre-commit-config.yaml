@@ -36,4 +36,5 @@ repos:
             types-psycopg2,
             pydbml,
             pydantic,
+            typer,
           ]

@@ -1,10 +1,18 @@
 [project]
-name = "sql-tools"
-version = "0.0.4"
-description = "A collection of utility tools for working with various dialects of SQL databases."
+name = "datatk"
+version = "0.1.0"
+description = "A CLI toolkit for comparing, analyzing, and exporting data across databases and file formats."
+authors = [{ name = "Nathan Thorell" }]
 license = { file = "LICENSE" }
 readme = "README.md"
 requires-python = ">=3.13"
+classifiers = [
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Environment :: Console",
+    "Topic :: Database",
+]
+
 dependencies = [
     "pyodbc",
     "psycopg2-binary",
@@ -17,20 +25,20 @@ dependencies = [
     "pyarrow",
     "pydbml",
     "pydantic>=2.12",
+    "typer",
 ]
+
+[project.urls]
+Homepage = "https://github.com/nathanthorell/datatk"
+Repository = "https://github.com/nathanthorell/datatk"
+Issues = "https://github.com/nathanthorell/datatk/issues"
+
 
 [project.optional-dependencies]
 dev = ["ruff", "mypy", "pandas-stubs", "types-psycopg2"]
 
 [project.scripts]
-object_compare = "object_compare.object_compare:main"
-usp_tester = "usp_tester.usp_tester:main"
-view_tester = "view_tester.view_tester:main"
-sql_to_parquet = "sql_to_parquet.sql_to_parquet:main"
-schema_size = "schema_size.schema_size:main"
-data_compare = "data_compare.data_compare:main"
-data_cleanup = "data_cleanup.data_cleanup:main"
-db_diagram = "db_diagram.db_diagram:main"
+datatk = "datatk.cli:app"
 
 [build-system]
 requires = ["setuptools"]
@@ -38,6 +46,10 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 package-dir = { "" = "./src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = true
 
 [tool.ruff]
 target-version = "py313"
@@ -72,12 +84,31 @@ namespace_packages = true
 exclude = ["temp/.*"]
 
 [[tool.mypy.overrides]]
-module = ["pyodbc", "pydbml", "pydbml.*", "databricks", "databricks.*"]
+module = [
+    "pyodbc",
+    "pydbml",
+    "pydbml.*",
+    "databricks",
+    "databricks.*",
+    "conftest",
+]
 ignore_missing_imports = true
 
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
 
+[tool.ty]
+# ty type checker (Astral's new type checker)
+
+[tool.ty.environment]
+python-version = "3.13"
+python = ".venv"
+
+[tool.ty.src]
+include = ["src"]
+
 [tool.ty.rules]
-unused-ignore-comment = 'ignore'
+unused-ignore-comment = "ignore"
+# Ignore for modules without type stubs
+unresolved-import = "warn"

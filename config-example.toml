@@ -1,5 +1,5 @@
 ######################################################################################
-[sql_tools]
+[datatk]
 logging_level = "summary" # "verbose", "errors_only", or "summary"
 
 ######################################################################################
@@ -29,12 +29,12 @@ STAGE = "STAGE_DB"
 PROD = "PROD_DB"
 
 ######################################################################################
-[usp_tester]
+[proc_tester]
 schema = "report"
 conn = "DEV_DB"
 database = "ExampleDb" # Optional, switches from whatever db is in conn to this db
 
-[usp_tester.defaults]
+[proc_tester.defaults]
 start_date = "2024-01-01"
 end_date = "2024-01-31"
 start_datetime = "2023-01-01 00:00:00"
@@ -51,7 +51,7 @@ conn = "DEV_DB"
 database = "ExampleDb" # Optional, switches from whatever db is in conn to this db
 
 ######################################################################################
-[sql_to_parquet]
+[export_parquet]
 conn = "DEV_DB"
 database = "ExampleDb" # Optional, switches from whatever db is in conn to this db
 data_dir = "./data/"
@@ -62,22 +62,22 @@ batch_size = 10000
 #   - name: Friendly name for the output file (without .parquet extension)
 #   - object: SQL object name in format "schema.object" or just "object" (defaults to dbo)
 #   - filter: Optional SQL WHERE clause to filter data
-[[sql_to_parquet.objects]]
+[[export_parquet.objects]]
 name = "customers"
 object = "dbo.Customers"
 filter = "IsActive = 1"
 
-[[sql_to_parquet.objects]]
+[[export_parquet.objects]]
 name = "orders"
 object = "sales.vw_OrderDetails"
 filter = "OrderDate >= '2023-01-01'"
 
-[[sql_to_parquet.objects]]
+[[export_parquet.objects]]
 name = "products"
 object = "inventory.Products"
 
 # Example with default dbo schema (will use dbo.Employees)
-[[sql_to_parquet.objects]]
+[[export_parquet.objects]]
 name = "employees"
 object = "Employees"
 filter = "Department = 'Engineering'"
