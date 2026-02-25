@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import contextlib
 import os
-from typing import TYPE_CHECKING, Generator, Literal, TypeAlias
+from typing import TYPE_CHECKING, Generator, Literal
 
 import psycopg2
+import psycopg2.extensions
 import pyodbc
 from databricks import sql as databricks_sql
 from pydantic import BaseModel, computed_field
@@ -20,11 +21,6 @@ from sqlalchemy.engine import Engine
 
 if TYPE_CHECKING:
     pass
-
-# Type alias for raw database connections
-RawConnection: TypeAlias = (
-    "pyodbc.Connection | psycopg2.extensions.connection | databricks_sql.client.Connection"
-)
 
 
 class MSSQLConnection(BaseModel):

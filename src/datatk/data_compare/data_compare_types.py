@@ -1,18 +1,13 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 import pandas as pd
-import psycopg2
-import pyodbc
 from rich.pretty import Pretty
 from rich.table import Table
 
 from ..utils import Connection, load_connection, modify_connection_for_database
 from ..utils.rich_utils import COLORS, console
-
-ConnectionType = Union[pyodbc.Connection, "psycopg2.extensions.connection"]
-CursorType = Union[pyodbc.Cursor, "psycopg2.extensions.cursor"]
 
 
 @dataclass
