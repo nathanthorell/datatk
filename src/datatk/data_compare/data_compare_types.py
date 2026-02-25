@@ -25,9 +25,18 @@ class QueryResult:
 class ComparisonResult:
     """Represents the result of comparing two query results"""
 
-    def __init__(self, left: QueryResult, right: QueryResult):
+    def __init__(
+        self,
+        left: QueryResult,
+        right: QueryResult,
+        *,
+        case_insensitive: bool = False,
+        show_performance: bool = True,
+    ):
         self.left = left
         self.right = right
+        self.case_insensitive = case_insensitive
+        self.show_performance = show_performance
 
         # Initialize variables
         self.left_only = pd.DataFrame()
@@ -111,7 +120,6 @@ class ComparisonResult:
             if left_df[col].dtype == object or right_df[col].dtype == object:
                 left_normalized[col] = left_normalized[col].astype(str).str.strip()
                 right_normalized[col] = right_normalized[col].astype(str).str.strip()
-
             # Numeric type normalization
             elif pd.api.types.is_numeric_dtype(left_df[col]) and pd.api.types.is_numeric_dtype(
                 right_df[col]
@@ -142,56 +150,83 @@ class ComparisonResult:
         left_normalized, right_normalized = self._normalize_data_types(left_df, right_df_normalized)
 
         # Sort columns for consistent comparison
-        left_sorted = left_normalized[sorted(left_normalized.columns)]
-        right_sorted = right_normalized[sorted(right_normalized.columns)]
+        cols = sorted(left_normalized.columns.tolist())
+        left_sorted = left_normalized[cols]
+        right_sorted = right_normalized[cols]
 
-        try:
-            # Perform the merge to identify differences
-            merged = left_sorted.merge(right_sorted, how="outer", indicator=True)
+        if self.case_insensitive:
+            # Build lowercase copies for the merge only — originals used for output
+            left_cmp = left_sorted.copy()
+            right_cmp = right_sorted.copy()
+            for col in cols:
+                if left_cmp[col].dtype == object:
+                    left_cmp[col] = left_cmp[col].str.lower()
+                    right_cmp[col] = right_cmp[col].str.lower()
 
-            # Extract the results
-            self.left_only = merged[merged["_merge"] == "left_only"].drop("_merge", axis=1)
-            self.right_only = merged[merged["_merge"] == "right_only"].drop("_merge", axis=1)
-            self.common_rows = merged[merged["_merge"] == "both"].drop("_merge", axis=1)
+            left_cmp["__left_idx__"] = range(len(left_cmp))
+            right_cmp["__right_idx__"] = range(len(right_cmp))
+            merged = left_cmp.merge(right_cmp, on=cols, how="outer", indicator=True)
 
-        except Exception as e:
-            console.print(f"[dim]Merge operation failed: {e}[/]")
-            console.print("[dim]Falling back to alternative comparison method...[/]")
+            left_idx = (
+                merged.loc[merged["_merge"] == "left_only", "__left_idx__"].dropna().astype(int)
+            )
+            right_idx = (
+                merged.loc[merged["_merge"] == "right_only", "__right_idx__"].dropna().astype(int)
+            )
+            both_idx = merged.loc[merged["_merge"] == "both", "__left_idx__"].dropna().astype(int)
 
-            # Alternative approach: use set-like operations with string representations
-            # Convert rows to hashable strings for set operations
-            left_strings = set(left_sorted.apply(lambda x: "|".join(x.astype(str)), axis=1))
-            right_strings = set(right_sorted.apply(lambda x: "|".join(x.astype(str)), axis=1))
+            self.left_only = left_sorted.iloc[left_idx].reset_index(drop=True)
+            self.right_only = right_sorted.iloc[right_idx].reset_index(drop=True)
+            self.common_rows = left_sorted.iloc[both_idx].reset_index(drop=True)
 
-            # Find differences using set operations
-            left_only_strings = left_strings - right_strings
-            right_only_strings = right_strings - left_strings
-            common_strings = left_strings & right_strings
+        else:
+            try:
+                # Perform the merge to identify differences
+                merged = left_sorted.merge(right_sorted, how="outer", indicator=True)
 
-            # Convert back to DataFrames by filtering original data
-            if left_only_strings:
-                left_mask = left_sorted.apply(lambda x: "|".join(x.astype(str)), axis=1).isin(
-                    left_only_strings
-                )
-                self.left_only = left_sorted[left_mask].drop_duplicates()
-            else:
-                self.left_only = pd.DataFrame(columns=left_sorted.columns)
+                # Extract the results
+                self.left_only = merged[merged["_merge"] == "left_only"].drop("_merge", axis=1)
+                self.right_only = merged[merged["_merge"] == "right_only"].drop("_merge", axis=1)
+                self.common_rows = merged[merged["_merge"] == "both"].drop("_merge", axis=1)
 
-            if right_only_strings:
-                right_mask = right_sorted.apply(lambda x: "|".join(x.astype(str)), axis=1).isin(
-                    right_only_strings
-                )
-                self.right_only = right_sorted[right_mask].drop_duplicates()
-            else:
-                self.right_only = pd.DataFrame(columns=right_sorted.columns)
+            except Exception as e:
+                console.print(f"[dim]Merge operation failed: {e}[/]")
+                console.print("[dim]Falling back to alternative comparison method...[/]")
 
-            if common_strings:
-                common_mask = left_sorted.apply(lambda x: "|".join(x.astype(str)), axis=1).isin(
-                    common_strings
-                )
-                self.common_rows = left_sorted[common_mask].drop_duplicates()
-            else:
-                self.common_rows = pd.DataFrame(columns=left_sorted.columns)
+                # Alternative approach: use set-like operations with string representations
+                # Convert rows to hashable strings for set operations
+                left_strings = set(left_sorted.apply(lambda x: "|".join(x.astype(str)), axis=1))
+                right_strings = set(right_sorted.apply(lambda x: "|".join(x.astype(str)), axis=1))
+
+                # Find differences using set operations
+                left_only_strings = left_strings - right_strings
+                right_only_strings = right_strings - left_strings
+                common_strings = left_strings & right_strings
+
+                # Convert back to DataFrames by filtering original data
+                if left_only_strings:
+                    left_mask = left_sorted.apply(lambda x: "|".join(x.astype(str)), axis=1).isin(
+                        left_only_strings
+                    )
+                    self.left_only = left_sorted[left_mask].drop_duplicates()
+                else:
+                    self.left_only = pd.DataFrame(columns=left_sorted.columns)
+
+                if right_only_strings:
+                    right_mask = right_sorted.apply(lambda x: "|".join(x.astype(str)), axis=1).isin(
+                        right_only_strings
+                    )
+                    self.right_only = right_sorted[right_mask].drop_duplicates()
+                else:
+                    self.right_only = pd.DataFrame(columns=right_sorted.columns)
+
+                if common_strings:
+                    common_mask = left_sorted.apply(lambda x: "|".join(x.astype(str)), axis=1).isin(
+                        common_strings
+                    )
+                    self.common_rows = left_sorted[common_mask].drop_duplicates()
+                else:
+                    self.common_rows = pd.DataFrame(columns=left_sorted.columns)
 
         # Sets is_equal if we have no differences (both sets match entirely)
         left_only_count = len(self.left_only)
@@ -224,12 +259,9 @@ class ComparisonResult:
 
         return metrics
 
-    def rich_display(self) -> None:
-        """Display the comparison result using Rich formatting"""
+    def _display_summary(self) -> None:
         status_color = "green" if self.is_equal else "red"
         row_color = "green" if self.row_count_match else "yellow"
-
-        perf_metrics = self.calculate_performance_metrics()
 
         console.rule(
             f"[bold]Comparison Result: [{status_color}]"
@@ -244,110 +276,104 @@ class ComparisonResult:
                 + f"[bold {row_color}]{self.right.row_count}[/]"
             )
 
-        console.print(
-            f"[bold]Performance:[/] [{perf_metrics['perf_color']}]{perf_metrics['perf_text']}[/]"
-        )
+        if self.case_insensitive:
+            console.print("[bold]Mode:[/] [yellow]Case-insensitive string comparison[/]")
+
+        if self.show_performance:
+            perf_metrics = self.calculate_performance_metrics()
+            color = perf_metrics["perf_color"]
+            text = perf_metrics["perf_text"]
+            console.print(f"[bold]Performance:[/] [{color}]{text}[/]")
 
         table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2, 0, 0))
         table.add_column("Query", style="dim")
         table.add_column("Rows", justify="right")
         table.add_column("Duration", justify="right")
-
         table.add_row("Left", str(self.left.row_count), f"{self.left.duration:.2f}s")
         table.add_row("Right", str(self.right.row_count), f"{self.right.duration:.2f}s")
-
         console.print(table)
 
+    def _display_column_mismatch(self) -> None:
+        column_comparison = self._compare_columns(self.left.results, self.right.results)
+        left_only = column_comparison["left_only"]
+        right_only = column_comparison["right_only"]
+        matching = column_comparison["matching"]
+
+        console.print("[bold red]Column mismatch:[/]")
+        table = Table(show_header=True)
+        table.add_column("Category", style="bold")
+        table.add_column("Count", justify="right")
+        table.add_column("Columns")
+        table.add_row(
+            "[bold red]Left-only[/]",
+            str(len(left_only)),
+            ", ".join(left_only) if left_only else "[dim]None[/]",
+        )
+        table.add_row(
+            "[bold red]Right-only[/]",
+            str(len(right_only)),
+            ", ".join(right_only) if right_only else "[dim]None[/]",
+        )
+        table.add_row(
+            "[bold green]Matching[/]",
+            str(len(matching)),
+            ", ".join(matching) if matching else "[dim]None[/]",
+        )
+        console.print(table)
+
+    def _display_row_differences(self) -> None:
+        left_only_count = len(self.left_only)
+        right_only_count = len(self.right_only)
+        common_count = len(self.common_rows)
+
+        left_pct = (
+            f"{left_only_count / self.left.row_count * 100:.1f}% of left"
+            if self.left.row_count > 0
+            else "N/A"
+        )
+        right_pct = (
+            f"{right_only_count / self.right.row_count * 100:.1f}% of right"
+            if self.right.row_count > 0
+            else "N/A"
+        )
+        common_pct = (
+            f"{common_count / self.left.row_count * 100:.1f}% of left"
+            if self.left.row_count > 0
+            else "N/A"
+        )
+
+        console.print("[bold]Row Differences:[/]")
+        table = Table(show_header=True)
+        table.add_column("Category", style="bold")
+        table.add_column("Count", justify="right")
+        table.add_column("Percentage", justify="right")
+        table.add_row("In left only", str(left_only_count), left_pct)
+        table.add_row("In right only", str(right_only_count), right_pct)
+        table.add_row("Common rows", str(common_count), common_pct)
+        console.print(table)
+
+        max_samples = 5
+        if not self.left_only.empty:
+            n = min(max_samples, len(self.left_only))
+            console.print(
+                f"\n[bold]Sample rows in left but not in right ({n} of {len(self.left_only)}):[/]"
+            )
+            console.print(Pretty(self.left_only.head(max_samples)))
+        if not self.right_only.empty:
+            n = min(max_samples, len(self.right_only))
+            console.print(
+                f"\n[bold]Sample rows in right but not in left ({n} of {len(self.right_only)}):[/]"
+            )
+            console.print(Pretty(self.right_only.head(max_samples)))
+
+    def rich_display(self) -> None:
+        """Display the comparison result using Rich formatting"""
+        self._display_summary()
         if not self.is_equal:
             if not self.columns_match:
-                column_comparison = self._compare_columns(self.left.results, self.right.results)
-
-                console.print("[bold red]Column mismatch:[/]")
-
-                # Create a table to display column comparison
-                column_table = Table(show_header=True)
-                column_table.add_column("Category", style="bold")
-                column_table.add_column("Count", justify="right")
-                column_table.add_column("Columns")
-
-                left_only = column_comparison["left_only"]
-                right_only = column_comparison["right_only"]
-                matching = column_comparison["matching"]
-
-                column_table.add_row(
-                    "[bold red]Left-only[/]",
-                    str(len(left_only)),
-                    ", ".join(left_only) if left_only else "[dim]None[/]",
-                )
-
-                column_table.add_row(
-                    "[bold red]Right-only[/]",
-                    str(len(right_only)),
-                    ", ".join(right_only) if right_only else "[dim]None[/]",
-                )
-
-                column_table.add_row(
-                    "[bold green]Matching[/]",
-                    str(len(matching)),
-                    ", ".join(matching) if matching else "[dim]None[/]",
-                )
-
-                console.print(column_table)
+                self._display_column_mismatch()
             else:
-                # Show difference counts
-                console.print("[bold]Row Differences:[/]")
-
-                diff_table = Table(show_header=True)
-                diff_table.add_column("Category", style="bold")
-                diff_table.add_column("Count", justify="right")
-                diff_table.add_column("Percentage", justify="right")
-
-                # Rows only in left
-                left_only_count = len(self.left_only)
-                if self.left.row_count > 0:
-                    left_only_pct = f"{left_only_count / self.left.row_count * 100:.1f}% of left"
-                else:
-                    left_only_pct = "N/A"
-
-                # Rows only in right
-                right_only_count = len(self.right_only)
-                if self.right.row_count > 0:
-                    right_only_pct = (
-                        f"{right_only_count / self.right.row_count * 100:.1f}% of right"
-                    )
-                else:
-                    right_only_pct = "N/A"
-
-                # Common rows
-                common_count = len(self.common_rows)
-                if self.left.row_count > 0:
-                    common_pct = f"{common_count / self.left.row_count * 100:.1f}% of left"
-                else:
-                    common_pct = "N/A"
-
-                diff_table.add_row("In left only", str(left_only_count), left_only_pct)
-                diff_table.add_row("In right only", str(right_only_count), right_only_pct)
-                diff_table.add_row("Common rows", str(common_count), common_pct)
-
-                console.print(diff_table)
-
-                max_samples = 5
-                if not self.left_only.empty:
-                    left_sample_count = min(max_samples, len(self.left_only))
-                    console.print(
-                        f"\n[bold]Sample rows in left but not in right "
-                        f"({left_sample_count} of {len(self.left_only)}):[/]"
-                    )
-                    console.print(Pretty(self.left_only.head(max_samples)))
-
-                if not self.right_only.empty:
-                    right_sample_count = min(max_samples, len(self.right_only))
-                    console.print(
-                        f"\n[bold]Sample rows in right but not in left "
-                        f"({right_sample_count} of {len(self.right_only)}):[/]"
-                    )
-                    console.print(Pretty(self.right_only.head(max_samples)))
-
+                self._display_row_differences()
         console.print()
 
 
@@ -364,6 +390,7 @@ class ComparisonItem:
     schema_name: str = ""
     left_db_type: str = "mssql"
     right_db_type: str = "mssql"
+    case_insensitive: bool = False
 
     @property
     def full_table_name(self) -> str:
@@ -379,6 +406,7 @@ class ComparisonConfig:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.sql_dir = config.get("sql_dir", "./sql")
+        self.case_insensitive = config.get("case_insensitive", False)
         self.comparisons = self._process_comparisons()
 
     def _process_comparisons(self) -> List[ComparisonItem]:
@@ -431,6 +459,7 @@ class ComparisonConfig:
                 right_db_type=item.get("right_db_type", "mssql"),
                 table_name=item.get("table_name", "table_name_not_provided"),
                 schema_name=item.get("schema_name", ""),
+                case_insensitive=item.get("case_insensitive", self.case_insensitive),
             )
             comparisons.append(comparison)
 

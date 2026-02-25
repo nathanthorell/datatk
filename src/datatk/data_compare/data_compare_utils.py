@@ -14,19 +14,24 @@ from .data_compare_types import ComparisonConfig, ComparisonResult, QueryResult
 
 
 def execute_sql_query(
-    conn: Connection, sql_query: str, params: Optional[Tuple[Any, ...]] = None
+    conn: Connection,
+    sql_query: str,
+    params: Optional[list[Any]] = None,
+    show_performance: bool = True,
 ) -> Tuple[pd.DataFrame, float]:
     """Execute a SQL query and return results with execution duration"""
     start_time = datetime.now()
 
-    query_preview = sql_query[:50].replace("\n", " ") + ("..." if len(sql_query) > 50 else "")
-    console.print(f"[dim]Executing query:[/] [blue]{query_preview}[/]", end="\r")
+    if show_performance:
+        query_preview = sql_query[:50].replace("\n", " ") + ("..." if len(sql_query) > 50 else "")
+        console.print(f"[dim]Executing query:[/] [blue]{query_preview}[/]", end="\r")
     try:
         engine = conn.get_sqlalchemy_engine()
         df = pd.read_sql_query(sql_query, engine, params=params)
 
         duration = (datetime.now() - start_time).total_seconds()
-        console.print(f"[green]Query completed in {duration:.2f}s[/]       ")
+        if show_performance:
+            console.print(f"[green]Query completed in {duration:.2f}s[/]       ")
         return df, duration
 
     except Exception as e:
@@ -41,8 +46,10 @@ def compare_sql(
     left_query: str,
     right_query: str,
     *,
-    left_params: Optional[Tuple[Any, ...]] = None,
-    right_params: Optional[Tuple[Any, ...]] = None,
+    left_params: Optional[list[Any]] = None,
+    right_params: Optional[list[Any]] = None,
+    case_insensitive: bool = False,
+    show_performance: bool = True,
 ) -> ComparisonResult:
     """Compare the results of two SQL queries"""
     with Progress(
@@ -51,11 +58,15 @@ def compare_sql(
         TimeElapsedColumn(),
         console=console,
         expand=False,
+        disable=not show_performance,
     ) as progress:
         # Left Query Execution
         task_left = progress.add_task("Executing left query...", total=1)
         left_results, left_duration = execute_sql_query(
-            conn=left_conn, sql_query=left_query, params=left_params
+            conn=left_conn,
+            sql_query=left_query,
+            params=left_params,
+            show_performance=show_performance,
         )
         left_result = QueryResult(results=left_results, duration=left_duration)
         progress.update(task_left, completed=1)
@@ -63,12 +74,20 @@ def compare_sql(
         # Right Query Execution
         task_right = progress.add_task("Executing right query...", total=1)
         right_results, right_duration = execute_sql_query(
-            conn=right_conn, sql_query=right_query, params=right_params
+            conn=right_conn,
+            sql_query=right_query,
+            params=right_params,
+            show_performance=show_performance,
         )
         right_result = QueryResult(results=right_results, duration=right_duration)
         progress.update(task_right, completed=1)
 
-    comparison = ComparisonResult(left_result, right_result)
+    comparison = ComparisonResult(
+        left_result,
+        right_result,
+        case_insensitive=case_insensitive,
+        show_performance=show_performance,
+    )
     comparison.rich_display()
 
     return comparison
@@ -144,6 +163,7 @@ def run_comparisons(config: ComparisonConfig) -> bool:
     output_format = config.config.get("output_format", "csv")
     timestamp_file = config.config.get("timestamp_file", False)
     max_sql_in_values = config.config.get("max_sql_in_values", 1000)
+    show_performance = config.config.get("show_performance", True)
 
     for i, comparison in enumerate(config.comparisons):
         name = comparison.name
@@ -166,6 +186,8 @@ def run_comparisons(config: ComparisonConfig) -> bool:
                 right_conn=right_conn,
                 left_query=comparison.left_query,
                 right_query=comparison.right_query,
+                case_insensitive=comparison.case_insensitive,
+                show_performance=show_performance,
             )
 
             # Handle output file generation if configured

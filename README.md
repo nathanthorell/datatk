@@ -76,7 +76,8 @@ datatk data-compare
 - Supports MSSQL, PostgreSQL, and Databricks
 - Compare data using inline SQL or query files
 - Output options: `left_only`, `right_only`, `common`, `differences`, or `all`
-- Reports differences and execution time per source
+- Optional case-insensitive string comparison (`case_insensitive`), configurable globally or per comparison
+- Reports differences and execution time per source (suppress with `show_performance = false`)
 
 ### `object-compare`
 

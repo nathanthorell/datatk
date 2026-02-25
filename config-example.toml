@@ -134,6 +134,8 @@ output_file_path = "./output/"
 output_format = "csv"  # "csv" or "json" or "sql"
 timestamp_file = false  # Whether to include timestamp in filename
 max_sql_in_values = 10000
+case_insensitive = false  # ignore string case when comparing; can be overridden per comparison
+show_performance = true   # Show query execution progress and timing
 
 [[data_compare.compare_list]]
 name = "Example Comparison"
@@ -143,6 +145,7 @@ left_db_type = "mssql"
 right_db_type = "mssql"
 schema_name = "dbo"      # Optional schema name for SQL output format
 table_name = "my_table"  # Optional table name for SQL output format
+# case_insensitive = true  # Override global default for this comparison
 left_query = """
 SELECT 1 AS column_one, 2 AS column_two
 """
