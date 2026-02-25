@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import re
+from typing import Literal
 
 from .connection_models import (
     Connection,
@@ -70,6 +71,10 @@ def _parse_mssql(conn_str: str) -> MSSQLConnection:
     if password_match:
         password = password_match.group(1).strip()
 
+    auth_type: Literal["sql", "azure_ad_interactive"] = "sql"
+    if "Authentication=ActiveDirectoryInteractive" in conn_str:
+        auth_type = "azure_ad_interactive"
+
     return MSSQLConnection(
         server=server,
         database=database,
@@ -78,6 +83,7 @@ def _parse_mssql(conn_str: str) -> MSSQLConnection:
         password=password,
         driver=get_driver_default(),
         encrypt=get_encrypt_default(),
+        auth_type=auth_type,
     )
 
 
@@ -237,6 +243,7 @@ def modify_connection_for_database(conn: Connection, database_name: str) -> Conn
             password=conn.password,
             driver=conn.driver,
             encrypt=conn.encrypt,
+            auth_type=conn.auth_type,
         )
     elif isinstance(conn, PostgresConnection):
         return PostgresConnection(

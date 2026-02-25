@@ -49,6 +49,7 @@ cp .env.example .env
 Connection string formats:
 
 - **MSSQL**: `Server=host,port;Database=db;UID=user;PWD=pass`
+- **MSSQL (Azure AD interactive)**: `Server=host,port;Database=db;Authentication=ActiveDirectoryInteractive` (opens browser for Entra ID login; `UID` is optional as a login hint)
 - **PostgreSQL**: `postgresql://user:pass@host:port/database`
 - **Databricks**: `databricks://token:ACCESS_TOKEN@host/catalog?http_path=/sql/1.0/warehouses/ID`
 

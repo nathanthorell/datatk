@@ -34,24 +34,33 @@ class MSSQLConnection(BaseModel):
     port: int | None = None
     driver: str = "ODBC Driver 18 for SQL Server"
     encrypt: str = "yes"
+    auth_type: Literal["sql", "azure_ad_interactive"] = "sql"
 
     @computed_field  # type: ignore[prop-decorator]
     @property
     def connection_string(self) -> str:
         """Build ODBC connection string."""
         server_part = f"{self.server},{self.port}" if self.port else self.server
-        return (
+        base = (
             f"Server={server_part};Database={self.database};"
-            f"UID={self.user};PWD={self.password};"
             f"Driver={self.driver};Encrypt={self.encrypt}"
         )
+        if self.auth_type == "azure_ad_interactive":
+            # Token is passed separately via attrs_before — no UID/PWD in the string
+            return base
+        return base + f";UID={self.user};PWD={self.password}"
 
     @contextlib.contextmanager
     def connect(self) -> Generator[pyodbc.Connection, None, None]:
         """Context manager for database connection."""
+        from .azure_client import AzureClient
+
         conn = None
         try:
-            conn = pyodbc.connect(self.connection_string)
+            if self.auth_type == "azure_ad_interactive":
+                conn = AzureClient().get_pyodbc_connection(self.connection_string)
+            else:
+                conn = pyodbc.connect(self.connection_string)
             yield conn
         finally:
             if conn:
@@ -59,6 +68,15 @@ class MSSQLConnection(BaseModel):
 
     def get_sqlalchemy_engine(self) -> Engine:
         """Get a SQLAlchemy engine for this connection."""
+        from .azure_client import AzureClient
+
+        if self.auth_type == "azure_ad_interactive":
+            conn_str = self.connection_string
+
+            def azure_creator() -> pyodbc.Connection:
+                return AzureClient().get_pyodbc_connection(conn_str)
+
+            return create_engine("mssql+pyodbc://", creator=azure_creator)
 
         def creator() -> pyodbc.Connection:
             return pyodbc.connect(self.connection_string)

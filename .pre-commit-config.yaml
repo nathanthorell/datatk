@@ -37,4 +37,5 @@ repos:
             pydbml,
             pydantic,
             typer,
+            azure-identity,
           ]
