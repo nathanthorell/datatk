@@ -14,6 +14,25 @@ from ..utils.rich_utils import COLORS, align_columns, console, create_table
 from .export_parquet_types import ExportConfig, ExportResult, SqlObject
 
 
+def _normalize_datetime_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize datetime columns to datetime64[us] for consistent parquet storage.
+
+    Prevents roundtrip inconsistencies where SQL Server dates like 0001-01-01
+    (below datetime64[ns] range) come through as Python datetime objects in one
+    read path but NaT in another. Normalizing to us-precision at write time
+    ensures both sides of any later comparison see the same values.
+    """
+    df = df.copy()
+    for col in df.columns:
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
+            df[col] = df[col].astype("datetime64[us]")
+        elif df[col].dtype == object:
+            inferred = pd.api.types.infer_dtype(df[col].dropna(), skipna=True)
+            if inferred in ("datetime", "datetime64", "date"):
+                df[col] = pd.to_datetime(df[col], errors="coerce").astype("datetime64[us]")
+    return df
+
+
 def export_to_parquet(
     engine: Engine,
     sql_object: SqlObject,
@@ -35,6 +54,7 @@ def export_to_parquet(
         # Execute query and process results in chunks
         row_count = 0
         for i, df_chunk in enumerate(pd.read_sql_query(query, engine, chunksize=batch_size)):
+            df_chunk = _normalize_datetime_columns(df_chunk)
             if i == 0:
                 # First chunk, create the file
                 df_chunk.to_parquet(file_path, engine="pyarrow", index=False)
