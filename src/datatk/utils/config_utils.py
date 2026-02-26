@@ -6,9 +6,9 @@ from typing import Any, Dict, Optional
 def get_config(tool_name: str, config_path: Optional[str] = None) -> Dict[str, Any]:
     """Helper function to process the config.toml file"""
     if config_path is None:
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
-        config_path = os.path.join(project_root, "config.toml")
+        config_path = os.environ.get("DATATK_CONFIG_PATH") or os.path.join(
+            os.getcwd(), "config.toml"
+        )
 
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config file not found at {config_path}")

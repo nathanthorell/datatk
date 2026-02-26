@@ -1,6 +1,9 @@
+import os
 from importlib.metadata import version
+from typing import Optional
 
 import typer
+from dotenv import load_dotenv
 
 from datatk.data_cleanup.data_cleanup import main as data_cleanup_main
 from datatk.data_compare.data_compare import main as data_compare_main
@@ -27,7 +30,13 @@ def _version_callback(value: bool) -> None:
 def main(
     ctx: typer.Context,
     version: bool = typer.Option(None, "--version", callback=_version_callback, is_eager=True),
+    config: Optional[str] = typer.Option(None, "--config", "-c", help="Path to config.toml file."),
+    env_file: Optional[str] = typer.Option(None, "--env-file", "-e", help="Path to .env file."),
 ) -> None:
+    if config:
+        os.environ["DATATK_CONFIG_PATH"] = config
+    if env_file:
+        load_dotenv(dotenv_path=env_file, override=True)
     if ctx.invoked_subcommand is None:
         typer.echo(ctx.get_help())
 
