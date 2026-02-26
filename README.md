@@ -74,8 +74,8 @@ Compare data across different database platforms.
 datatk data-compare
 ```
 
-- Supports MSSQL, PostgreSQL, and Databricks
-- Compare data using inline SQL or query files
+- Supports MSSQL, PostgreSQL, Databricks, and local files (Parquet, CSV, JSON)
+- Compare data using inline SQL, query files, or file paths (`db_type = "file"`, query set to the file path)
 - Output options: `left_only`, `right_only`, `common`, `differences`, or `all`
 - Optional case-insensitive string comparison (`case_insensitive`), configurable globally or per comparison
 - Reports differences and execution time per source (suppress with `show_performance = false`)

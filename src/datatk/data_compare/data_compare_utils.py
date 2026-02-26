@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from rich.progress import BarColumn, Progress, TextColumn, TimeElapsedColumn
 
-from ..utils import Connection
+from ..utils import Connection, FileConnection
 from ..utils.rich_utils import COLORS, console
 from .data_compare_types import ComparisonConfig, ComparisonResult, QueryResult
 
@@ -19,8 +19,22 @@ def execute_sql_query(
     params: Optional[list[Any]] = None,
     show_performance: bool = True,
 ) -> Tuple[pd.DataFrame, float]:
-    """Execute a SQL query and return results with execution duration"""
+    """Execute a SQL query (or read a file) and return results with execution duration"""
     start_time = datetime.now()
+
+    if isinstance(conn, FileConnection):
+        if show_performance:
+            console.print(f"[dim]Reading file:[/] [blue]{conn.file_path}[/]", end="\r")
+        try:
+            df = conn.read_file()
+            duration = (datetime.now() - start_time).total_seconds()
+            if show_performance:
+                console.print(f"[green]File read in {duration:.2f}s[/]       ")
+            return df, duration
+        except Exception as e:
+            duration = (datetime.now() - start_time).total_seconds()
+            console.print(f"[red]File read failed after {duration:.2f}s[/]       ")
+            raise Exception(f"File read failed: {str(e)}") from e
 
     if show_performance:
         query_preview = sql_query[:50].replace("\n", " ") + ("..." if len(sql_query) > 50 else "")

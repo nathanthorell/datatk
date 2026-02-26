@@ -1,13 +1,13 @@
 from typing import Dict
 
-from ..utils import Connection
+from ..utils import DbConnection
 from ..utils.rich_utils import console
 from . import object_compare_fetch_mssql as mssql
 from . import object_compare_fetch_pg as pg
 
 
 def fetch_definitions(
-    conn: Connection, schema_name: str, object_type: str, db_type: str = "mssql"
+    conn: DbConnection, schema_name: str, object_type: str, db_type: str = "mssql"
 ) -> Dict[str, str]:
     """
     Fetch object definitions for a given schema and object type.

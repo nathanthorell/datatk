@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Union
 
 from dotenv import load_dotenv
 
-from ..utils import Connection, get_config, load_connection, modify_connection_for_database
+from ..utils import DbConnection, get_config, load_connection, modify_connection_for_database
 from ..utils.rich_utils import align_columns, console, create_table
 
 
@@ -32,7 +32,7 @@ def get_default_for_date_type(
 
 
 def execute_procedure(
-    conn: Connection,
+    conn: DbConnection,
     schema: str,
     proc_name: str,
     defaults: Dict[str, Any],

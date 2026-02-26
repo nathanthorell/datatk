@@ -1,12 +1,13 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 import pandas as pd
 from rich.pretty import Pretty
 from rich.table import Table
 
-from ..utils import Connection, load_connection, modify_connection_for_database
+from ..utils import Connection, FileConnection, load_connection, modify_connection_for_database
+from ..utils.connection_models import DbType
 from ..utils.rich_utils import COLORS, console
 
 
@@ -116,8 +117,26 @@ class ComparisonResult:
         right_normalized = right_df.copy()
 
         for col in left_df.columns:
+            left_is_dt = pd.api.types.is_datetime64_any_dtype(left_df[col])
+            right_is_dt = pd.api.types.is_datetime64_any_dtype(right_df[col])
+
+            # Datetime normalization — checked BEFORE object dtype so that columns
+            # where one side is datetime64 and the other is object (e.g. SQL Server
+            # returning out-of-ns-range dates as strings) are both converted to a
+            # consistent datetime64[us] unit rather than falling into the string path.
+            if left_is_dt or right_is_dt:
+                try:
+                    left_normalized[col] = pd.to_datetime(
+                        left_normalized[col], errors="coerce"
+                    ).astype("datetime64[us]")
+                    right_normalized[col] = pd.to_datetime(
+                        right_normalized[col], errors="coerce"
+                    ).astype("datetime64[us]")
+                except Exception:
+                    left_normalized[col] = left_normalized[col].astype(str).str.strip()
+                    right_normalized[col] = right_normalized[col].astype(str).str.strip()
             # String type normalization
-            if left_df[col].dtype == object or right_df[col].dtype == object:
+            elif left_df[col].dtype == object or right_df[col].dtype == object:
                 left_normalized[col] = left_normalized[col].astype(str).str.strip()
                 right_normalized[col] = right_normalized[col].astype(str).str.strip()
             # Numeric type normalization
@@ -126,18 +145,6 @@ class ComparisonResult:
             ):
                 left_normalized[col] = pd.to_numeric(left_normalized[col], errors="coerce")
                 right_normalized[col] = pd.to_numeric(right_normalized[col], errors="coerce")
-
-            # Date type normalization
-            elif pd.api.types.is_datetime64_dtype(left_df[col]) or pd.api.types.is_datetime64_dtype(
-                right_df[col]
-            ):
-                try:
-                    left_normalized[col] = pd.to_datetime(left_normalized[col], errors="coerce")
-                    right_normalized[col] = pd.to_datetime(right_normalized[col], errors="coerce")
-                except Exception:
-                    # Fallback to string comparison if datetime conversion fails
-                    left_normalized[col] = left_normalized[col].astype(str).str.strip()
-                    right_normalized[col] = right_normalized[col].astype(str).str.strip()
 
         return left_normalized, right_normalized
 
@@ -401,7 +408,7 @@ class ComparisonItem:
 
 
 class ComparisonConfig:
-    """Configuration for SQL comparisons"""
+    """Configuration for data comparisons"""
 
     def __init__(self, config: Dict[str, Any]):
         self.config = config
@@ -409,45 +416,35 @@ class ComparisonConfig:
         self.case_insensitive = config.get("case_insensitive", False)
         self.comparisons = self._process_comparisons()
 
+    def _resolve_side(self, item: Dict[str, Any], side: str) -> tuple[str, Connection]:
+        """Resolve query and connection for one side ('left' or 'right') of a comparison."""
+        query: str | None = item.get(f"{side}_query")
+        if not query and f"{side}_query_file" in item:
+            query = self._load_sql_file(item[f"{side}_query_file"])
+        if not query:
+            raise ValueError(f"Comparison '{item['name']}' is missing a {side} query")
+
+        raw_db_type: str = item.get(f"{side}_db_type", "mssql")
+        if raw_db_type == "file":
+            conn: Connection = FileConnection(file_path=query)
+        else:
+            conn = load_connection(item[f"{side}_connection"], db_type=cast(DbType, raw_db_type))
+
+        if f"{side}_database" in item and not isinstance(conn, FileConnection):
+            conn = modify_connection_for_database(conn, item[f"{side}_database"])
+
+        return query, conn
+
     def _process_comparisons(self) -> List[ComparisonItem]:
         """Process comparison items from config, loading SQL files where needed"""
-        comparisons = []
-
-        # Get the comparison list from the config
         items = self.config.get("compare_list", [])
         if not items:
             raise ValueError("No comparisons defined in config")
 
+        comparisons = []
         for item in items:
-            # Process queries - either use inline query or load from file
-            left_query = item.get("left_query")
-            right_query = item.get("right_query")
-
-            # Load from file if needed
-            if not left_query and "left_query_file" in item:
-                left_query = self._load_sql_file(item["left_query_file"])
-            if not right_query and "right_query_file" in item:
-                right_query = self._load_sql_file(item["right_query_file"])
-
-            # Validate
-            if not left_query:
-                raise ValueError(f"Comparison '{item['name']}' is missing a left query")
-            if not right_query:
-                raise ValueError(f"Comparison '{item['name']}' is missing a right query")
-
-            # Get base connections
-            left_conn = load_connection(
-                item["left_connection"], db_type=item.get("left_db_type", "mssql")
-            )
-            right_conn = load_connection(
-                item["right_connection"], db_type=item.get("right_db_type", "mssql")
-            )
-
-            # Check for database overrides and modify connections if needed
-            if "left_database" in item:
-                left_conn = modify_connection_for_database(left_conn, item["left_database"])
-            if "right_database" in item:
-                right_conn = modify_connection_for_database(right_conn, item["right_database"])
+            left_query, left_conn = self._resolve_side(item, "left")
+            right_query, right_conn = self._resolve_side(item, "right")
 
             comparison = ComparisonItem(
                 name=item["name"],

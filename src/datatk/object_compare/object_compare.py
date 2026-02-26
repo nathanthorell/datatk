@@ -7,7 +7,7 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.text import Text
 
-from ..utils import Connection, get_config, load_connection, modify_connection_for_database
+from ..utils import DbConnection, get_config, load_connection, modify_connection_for_database
 from ..utils.rich_utils import console
 from .object_compare_fetch_objects import fetch_definitions
 from .object_compare_utils import (
@@ -18,7 +18,7 @@ from .object_compare_utils import (
 
 
 def compare_definitions(
-    connections: Dict[str, Connection],
+    connections: Dict[str, DbConnection],
     schema_name: str,
     object_type: str,
     display_name: str,
@@ -99,7 +99,7 @@ def main() -> None:
         "object_types", ["stored_proc", "view", "function"]
     )  # use these as defaults if nothing is in the config
 
-    connections: Dict[str, Connection] = {}
+    connections: Dict[str, DbConnection] = {}
 
     for env_name, env_var in environments.items():
         try:

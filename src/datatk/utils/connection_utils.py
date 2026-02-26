@@ -10,8 +10,8 @@ import re
 from typing import Literal
 
 from .connection_models import (
-    Connection,
     DatabricksConnection,
+    DbConnection,
     DbType,
     MSSQLConnection,
     PostgresConnection,
@@ -21,7 +21,7 @@ from .connection_models import (
 )
 
 
-def parse_connection(raw_string: str, db_type: DbType | None = None) -> Connection:
+def parse_connection(raw_string: str, db_type: DbType | None = None) -> DbConnection:
     """Parse a raw connection string into a Connection model.
 
     Args:
@@ -204,7 +204,7 @@ def _parse_databricks_keyvalue(conn_str: str) -> DatabricksConnection:
     )
 
 
-def load_connection(env_var_name: str, db_type: DbType | None = None) -> Connection:
+def load_connection(env_var_name: str, db_type: DbType | None = None) -> DbConnection:
     """Load a connection from an environment variable.
 
     Args:
@@ -224,7 +224,7 @@ def load_connection(env_var_name: str, db_type: DbType | None = None) -> Connect
     return parse_connection(conn_str, db_type)
 
 
-def modify_connection_for_database(conn: Connection, database_name: str) -> Connection:
+def modify_connection_for_database(conn: DbConnection, database_name: str) -> DbConnection:
     """Create a new Connection with a different database name.
 
     Args:

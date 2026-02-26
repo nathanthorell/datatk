@@ -181,6 +181,17 @@ right_query = """
 SELECT id, name FROM default.users
 """
 
+# Example comparing a DB query to a local file (parquet, csv, or json)
+[[data_compare.compare_list]]
+name = "DB vs File"
+left_connection = "DEV_DB"
+left_db_type = "mssql"
+right_db_type = "file"   # right_query becomes the file path; no right_connection needed
+left_query = """
+SELECT id, name FROM dbo.Users
+"""
+right_query = "./data/users.parquet"
+
 ######################################################################################
 [data_cleanup]
 conn = "DEV_DB"

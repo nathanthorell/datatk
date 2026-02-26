@@ -4,11 +4,11 @@ from typing import Any, Dict, List
 
 from dotenv import load_dotenv
 
-from ..utils import Connection, get_config, load_connection, modify_connection_for_database
+from ..utils import DbConnection, get_config, load_connection, modify_connection_for_database
 from ..utils.rich_utils import align_columns, console, create_table
 
 
-def fetch_views(conn: Connection, schema: str) -> List[str]:
+def fetch_views(conn: DbConnection, schema: str) -> List[str]:
     query = f"""
     SELECT TABLE_NAME
     FROM INFORMATION_SCHEMA.VIEWS
@@ -29,7 +29,7 @@ def fetch_views(conn: Connection, schema: str) -> List[str]:
 
 
 def execute_view(
-    conn: Connection, schema: str, view_name: str, logging_level: str
+    conn: DbConnection, schema: str, view_name: str, logging_level: str
 ) -> Dict[str, Any]:
     result: Dict[str, Any] = {
         "view_name": view_name,

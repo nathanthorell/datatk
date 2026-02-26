@@ -1,6 +1,6 @@
 from typing import Any
 
-from .connection_models import Connection
+from .connection_models import DbConnection
 from .db_util_types import (
     DbColumn,
     DbTable,
@@ -16,7 +16,7 @@ from .rich_utils import console
 class MetadataService:
     """Service for retrieving database metadata"""
 
-    def __init__(self, connection: Connection):
+    def __init__(self, connection: DbConnection):
         self.connection = connection
 
     def get_table_columns(self, table: DbTable) -> list[DbColumn]:

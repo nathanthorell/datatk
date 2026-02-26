@@ -1,7 +1,7 @@
 from typing import Literal
 
 from ..utils import (
-    Connection,
+    DbConnection,
     modify_connection_for_database,
 )
 from ..utils.config_models import SchemaSizeEnvironment
@@ -58,7 +58,7 @@ def get_table_sizes_query(db_type: Literal["mssql", "postgres"], schema_name: st
 
 
 def fetch_schema_sizes(
-    conn: Connection,
+    conn: DbConnection,
     db_type: Literal["mssql", "postgres"],
     schemas: list[str] | None = None,
 ) -> list[SchemaSize]:
@@ -97,7 +97,7 @@ def fetch_schema_sizes(
 
 
 def fetch_table_sizes(
-    conn: Connection,
+    conn: DbConnection,
     db_type: Literal["mssql", "postgres"],
     schema_name: str,
 ) -> list[TableSize]:
@@ -161,7 +161,7 @@ def sort_tables(
 def process_database_summary(
     env_name: str,
     db_name: str,
-    connection: Connection,
+    connection: DbConnection,
     db_type: Literal["mssql", "postgres"],
     schemas: list[str] | None,
     logging_level: str,
@@ -235,7 +235,7 @@ def process_database_summary(
 def process_database_detail(
     env_name: str,
     db_name: str,
-    connection: Connection,
+    connection: DbConnection,
     db_type: Literal["mssql", "postgres"],
     schemas: list[str] | None,
     sort_by: Literal["data_size", "row_count", "index_size", "total_size"],
@@ -289,7 +289,7 @@ def process_database_detail(
 
 def process_environment_summary(
     env: SchemaSizeEnvironment,
-    connection: Connection,
+    connection: DbConnection,
     db_type: Literal["mssql", "postgres"],
     logging_level: str,
 ) -> ServerResults:
@@ -320,7 +320,7 @@ def process_environment_summary(
 
 def process_environment_detail(
     env: SchemaSizeEnvironment,
-    connection: Connection,
+    connection: DbConnection,
     db_type: Literal["mssql", "postgres"],
     sort_by: Literal["data_size", "row_count", "index_size", "total_size"],
     top_n: int,

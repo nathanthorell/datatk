@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import contextlib
 import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Generator, Literal
 
+import pandas as pd
 import psycopg2
 import psycopg2.extensions
 import pyodbc
@@ -169,8 +171,40 @@ class DatabricksConnection(BaseModel):
         return create_engine("databricks://", creator=creator)
 
 
-# Union type for type hints
-Connection = MSSQLConnection | PostgresConnection | DatabricksConnection
+class FileConnection(BaseModel):
+    """File-based data source for Parquet, CSV, and JSON files."""
+
+    db_type: Literal["file"] = "file"
+    file_path: str
+
+    @property
+    def database(self) -> str:
+        """Filename, for display consistency with other connection types."""
+        return Path(self.file_path).name
+
+    @property
+    def file_format(self) -> str:
+        """File format inferred from extension."""
+        return Path(self.file_path).suffix.lstrip(".").lower()
+
+    def read_file(self) -> pd.DataFrame:
+        """Read the file into a DataFrame."""
+        fmt = self.file_format
+        if fmt == "parquet":
+            return pd.read_parquet(self.file_path)
+        elif fmt == "csv":
+            return pd.read_csv(self.file_path)
+        elif fmt == "json":
+            return pd.read_json(self.file_path)
+        else:
+            raise ValueError(f"Unsupported file format: .{fmt} (supported: parquet, csv, json)")
+
+
+# DB-only connections (server/engine required)
+DbConnection = MSSQLConnection | PostgresConnection | DatabricksConnection
+
+# All connection types including file sources
+Connection = DbConnection | FileConnection
 
 # Valid db_type values
 DbType = Literal["mssql", "postgres", "databricks"]
