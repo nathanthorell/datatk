@@ -11,8 +11,24 @@ jobs:
     environment: pypi
     permissions:
       id-token: write
+      contents: write
     steps:
       - uses: actions/checkout@v6
+
+      - name: Verify tag matches version in pyproject.toml
+        run: |
+          PKG_VERSION=$(grep '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          TAG_VERSION=${GITHUB_REF_NAME#v}
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "Version mismatch: pyproject.toml=$PKG_VERSION, tag=$GITHUB_REF_NAME"
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        run: gh release create ${{ github.ref_name }} --generate-notes --title "${{ github.ref_name }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
       - uses: astral-sh/setup-uv@v7
       - run: uv build
       - uses: pypa/gh-action-pypi-publish@release/v1

@@ -1,6 +1,6 @@
 [project]
 name = "datatk"
-version = "0.1.0"
+version = "0.2.0"
 description = "A CLI toolkit for comparing, analyzing, and exporting data across databases and file formats."
 authors = [{ name = "Nathan Thorell" }]
 license = { file = "LICENSE" }
