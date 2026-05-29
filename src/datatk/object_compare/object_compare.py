@@ -1,20 +1,69 @@
 import hashlib
-from typing import Dict, Set
+from typing import Dict, List, Set
 
 from dotenv import load_dotenv
-from rich.markup import escape
-from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich.text import Text
 
 from ..utils import DbConnection, get_config, load_connection, modify_connection_for_database
+from ..utils.connection_models import DbType, parse_db_type
 from ..utils.rich_utils import console
 from .object_compare_fetch_objects import fetch_definitions
 from .object_compare_utils import (
     ChecksumData,
     ComparisonResult,
     print_comparison_result,
+    print_connection_header,
 )
+
+DISPLAY_NAMES = {
+    "stored_proc": "stored procedure",
+    "view": "view",
+    "function": "function",
+    "table": "table",
+    "trigger": "trigger",
+    "sequence": "sequence",
+    "index": "index",
+    "type": "type",
+    "extension": "extension",
+    "external_table": "external table",
+    "foreign_key": "foreign key",
+}
+
+
+def build_connections(
+    environments: Dict[str, str],
+    db_type: DbType,
+    database: str | None = None,
+) -> Dict[str, DbConnection]:
+    """Build a connection per environment, skipping any that fail with a warning."""
+    connections: Dict[str, DbConnection] = {}
+    for env_name, env_var in environments.items():
+        try:
+            connections[env_name] = load_connection(env_var, db_type=db_type)
+            if database is not None:
+                connections[env_name] = modify_connection_for_database(
+                    connections[env_name], database_name=database
+                )
+        except ValueError as e:
+            console.print(f"[yellow]Warning:[/] Failed to connect to {env_name}: {e}")
+    return connections
+
+
+def run_object_comparisons(
+    connections: Dict[str, DbConnection],
+    schema: str,
+    object_types: List[str],
+    db_type: str = "mssql",
+) -> None:
+    """Run compare_definitions for each object type, with progress messaging."""
+    for obj_type in object_types:
+        if obj_type in DISPLAY_NAMES:
+            display_type = DISPLAY_NAMES[obj_type]
+            console.print(f"\n[bold magenta]⚡ Processing {display_type}s[/]")
+            compare_definitions(connections, schema, obj_type, display_type, db_type)
+            console.print(f"[bold green]✓ {display_type.capitalize()}s comparison complete![/]")
+        else:
+            console.print(f"[yellow]Warning:[/] Unknown object type '{obj_type}' skipped")
 
 
 def compare_definitions(
@@ -93,54 +142,12 @@ def main() -> None:
     object_compare_config = get_config("object_compare")
     schema = object_compare_config["schema"]
     database = object_compare_config.get("database", None)
-    db_type = object_compare_config.get("db_type", "mssql")
+    db_type = parse_db_type(object_compare_config.get("db_type", "mssql"))
     environments = object_compare_config.get("environments", {})
-    object_types = object_compare_config.get(
-        "object_types", ["stored_proc", "view", "function"]
-    )  # use these as defaults if nothing is in the config
+    object_types = object_compare_config.get("object_types", ["stored_proc", "view", "function"])
 
-    connections: Dict[str, DbConnection] = {}
-
-    for env_name, env_var in environments.items():
-        try:
-            connections[env_name] = load_connection(env_var, db_type=db_type)
-            if database is not None:
-                connections[env_name] = modify_connection_for_database(
-                    connections[env_name], database_name=database
-                )
-        except ValueError as e:
-            console.print(f"[yellow]Warning:[/] Failed to connect to {env_name}: {e}")
-
-    header_content = "[bold cyan]SQL Object Comparison Tool[/]\n"
-    header_content += f"Database Type: [cyan]{db_type}[/] | Schema: [cyan]{schema}[/]\n"
-
-    # Display connection info for each environment with column alignment
-    max_env_len = max(len(env) for env in environments.keys())
-    max_server_len = max(
-        (len(connections[env].server) if env in connections and connections[env].server else 3)
-        for env in environments.keys()
-    )
-
-    for env_name in environments.keys():
-        if env_name in connections:
-            conn = connections[env_name]
-            server = escape(conn.server) if conn.server else "N/A"
-            database = escape(conn.database) if conn.database else "N/A"
-            padded_env = env_name.upper().ljust(max_env_len)
-            padded_server = server.ljust(max_server_len)
-            header_content += (
-                f"\n[green]{padded_env}[/]: Server: {padded_server} | Database: {database}"
-            )
-        else:
-            padded_env = env_name.upper().ljust(max_env_len)
-            header_content += f"\n[yellow]{padded_env}[/]: Not connected"
-
-    term_width = console.width or 100
-    content_lines = header_content.split("\n")
-    max_line_length = max(len(Text.from_markup(line).plain) for line in content_lines)
-    ideal_width = max_line_length + 8
-    panel_width = min(max(ideal_width, 60), term_width - 4)
-    console.print(Panel(header_content, width=panel_width, border_style="cyan"))
+    connections = build_connections(environments, db_type, database)
+    print_connection_header(connections, list(environments.keys()), db_type, schema)
 
     if not connections:
         console.print(
@@ -149,29 +156,7 @@ def main() -> None:
         )
         return
 
-    display_names = {
-        "stored_proc": "stored procedure",
-        "view": "view",
-        "function": "function",
-        "table": "table",
-        "trigger": "trigger",
-        "sequence": "sequence",
-        "index": "index",
-        "type": "type",
-        "extension": "extension",
-        "external_table": "external table",
-        "foreign_key": "foreign key",
-    }
-
-    for obj_type in object_types:
-        if obj_type in display_names:
-            display_type = display_names[obj_type]
-            console.print(f"\n[bold magenta]⚡ Processing {display_type}s[/]")
-            compare_definitions(connections, schema, obj_type, display_type, db_type)
-            console.print(f"[bold green]✓ {display_type.capitalize()}s comparison complete![/]")
-        else:
-            console.print(f"[yellow]Warning:[/] Unknown object type '{obj_type}' skipped")
-
+    run_object_comparisons(connections, schema, object_types, db_type)
     print("")
 
 

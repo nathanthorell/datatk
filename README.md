@@ -88,6 +88,8 @@ Compare database object definitions across environments (DEV, QA, TEST, PROD).
 datatk object-compare
 ```
 
+![object-compare demo](examples/object_compare_demo.svg)
+
 - Supports MSSQL and PostgreSQL
 - Object types: stored procedures, views, functions, tables, triggers, sequences, indexes,
   types, extensions (PostgreSQL), external tables (MSSQL), and foreign keys

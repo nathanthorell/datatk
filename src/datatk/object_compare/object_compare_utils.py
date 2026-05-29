@@ -1,8 +1,12 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Dict, List, Optional
 
+from rich.markup import escape
+from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
+from ..utils import DbConnection
 from ..utils.rich_utils import COLORS, console
 
 
@@ -130,3 +134,42 @@ def print_comparison_result(result: ComparisonResult) -> None:
             f"'{result.schema_name}' for {result.object_type}s[/green]"
         )
         console.print(message)
+
+
+def print_connection_header(
+    connections: Dict[str, DbConnection],
+    environment_names: List[str],
+    db_type: str,
+    schema: str,
+) -> None:
+    """Print the Rich panel showing connection info for each environment."""
+    header_content = "[bold cyan]SQL Object Comparison Tool[/]\n"
+    header_content += f"Database Type: [cyan]{db_type}[/] | Schema: [cyan]{schema}[/]\n"
+
+    # Display connection info for each environment with column alignment
+    max_env_len = max(len(env) for env in environment_names)
+    max_server_len = max(
+        (len(connections[env].server) if env in connections and connections[env].server else 3)
+        for env in environment_names
+    )
+
+    for env_name in environment_names:
+        if env_name in connections:
+            conn = connections[env_name]
+            server = escape(conn.server) if conn.server else "N/A"
+            database = escape(conn.database) if conn.database else "N/A"
+            padded_env = env_name.upper().ljust(max_env_len)
+            padded_server = server.ljust(max_server_len)
+            header_content += (
+                f"\n[green]{padded_env}[/]: Server: {padded_server} | Database: {database}"
+            )
+        else:
+            padded_env = env_name.upper().ljust(max_env_len)
+            header_content += f"\n[yellow]{padded_env}[/]: Not connected"
+
+    term_width = console.width or 100
+    content_lines = header_content.split("\n")
+    max_line_length = max(len(Text.from_markup(line).plain) for line in content_lines)
+    ideal_width = max_line_length + 8
+    panel_width = min(max(ideal_width, 60), term_width - 4)
+    console.print(Panel(header_content, width=panel_width, border_style="cyan"))

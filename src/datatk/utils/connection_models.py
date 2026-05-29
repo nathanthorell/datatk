@@ -210,6 +210,17 @@ Connection = DbConnection | FileConnection
 DbType = Literal["mssql", "postgres", "databricks"]
 
 
+def parse_db_type(value: str) -> DbType:
+    """Validate and return a DbType, raising ValueError for unknown values."""
+    if value == "mssql":
+        return "mssql"
+    elif value == "postgres":
+        return "postgres"
+    elif value == "databricks":
+        return "databricks"
+    raise ValueError(f"Unknown db_type: {value!r}. Valid options: mssql, postgres, databricks")
+
+
 def detect_db_type(conn_str: str) -> DbType:
     """Detect database type from connection string format."""
     lower = conn_str.lower()
