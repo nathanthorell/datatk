@@ -1,6 +1,6 @@
 [project]
 name = "datatk"
-version = "0.2.1"
+version = "0.2.2"
 description = "A CLI toolkit for comparing, analyzing, and exporting data across databases and file formats."
 authors = [{ name = "Nathan Thorell" }]
 license = { file = "LICENSE" }
@@ -16,13 +16,13 @@ classifiers = [
 dependencies = [
     "pyodbc",
     "psycopg2-binary",
-    "databricks-sql-connector",
+    "databricks-sql-connector>=4",
     "databricks-sqlalchemy",
     "python-dotenv",
-    "rich",
-    "sqlalchemy",
-    "pandas",
-    "pyarrow",
+    "rich>=14",
+    "sqlalchemy>=2.0",
+    "pandas>=2.0",
+    "pyarrow>=14",
     "pydbml",
     "pydantic>=2.12",
     "typer",

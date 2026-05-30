@@ -8,6 +8,7 @@ venv/
 __pycache__/
 .mypy_cache/
 .ruff_cache/
+.pytest_cache/
 
 # Build artifacts
 dist/
@@ -17,6 +18,7 @@ build/
 data/
 output/
 temp/
+.coverage
 
 # Config
 config.toml

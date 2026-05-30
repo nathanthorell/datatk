@@ -2,8 +2,8 @@ from dotenv import load_dotenv
 
 from ..utils.config_utils import get_config
 from ..utils.rich_utils import console
+from .data_compare_execute import run_comparisons
 from .data_compare_types import ComparisonConfig
-from .data_compare_utils import run_comparisons
 
 
 def main() -> None:
