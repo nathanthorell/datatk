@@ -3,7 +3,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-from dotenv import load_dotenv
 from rich.markup import escape
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -22,8 +21,7 @@ from .data_cleanup_utils import (
 
 def main() -> None:
     try:
-        # Load environment variables and configuration
-        load_dotenv(override=True)
+        # Load configuration
         data_cleanup_config = get_config("data_cleanup")
         config = CleanupConfig(data_cleanup_config)
 

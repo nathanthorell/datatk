@@ -5,7 +5,6 @@ from typing import List
 
 import pandas as pd
 import pyodbc
-from dotenv import load_dotenv
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from sqlalchemy.engine import Engine
 
@@ -163,7 +162,6 @@ def print_final_statistics(results: List[ExportResult]) -> None:
 
 
 def main() -> None:
-    load_dotenv()
     tool_config = get_config("export_parquet")
     export_config = ExportConfig.from_dict(tool_config)
     data_dir_path = get_output_directory(export_config.data_dir)

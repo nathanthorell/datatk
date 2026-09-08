@@ -2,8 +2,6 @@ import time
 from datetime import date, datetime
 from typing import Any, Dict, List, Union
 
-from dotenv import load_dotenv
-
 from ..utils import DbConnection, get_config, load_connection, modify_connection_for_database
 from ..utils.rich_utils import align_columns, console, create_table
 
@@ -168,7 +166,6 @@ def print_results_summary(results: List[Dict[str, Any]], logging_level: str) -> 
 
 
 def main() -> None:
-    load_dotenv()
     usp_config = get_config("proc_tester")
 
     defaults = usp_config["defaults"]

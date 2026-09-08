@@ -1,5 +1,3 @@
-from dotenv import load_dotenv
-
 from ..utils.config_utils import get_config
 from ..utils.rich_utils import console
 from .data_compare_execute import run_comparisons
@@ -8,7 +6,6 @@ from .data_compare_types import ComparisonConfig
 
 def main() -> None:
     try:
-        load_dotenv(override=True)
         data_compare_config = get_config("data_compare")
         config = ComparisonConfig(data_compare_config)
         run_comparisons(config)

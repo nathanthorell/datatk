@@ -3,7 +3,7 @@ from importlib.metadata import version
 from typing import Optional
 
 import typer
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 
 from datatk.data_cleanup.data_cleanup import main as data_cleanup_main
 from datatk.data_compare.data_compare import main as data_compare_main
@@ -35,8 +35,12 @@ def main(
 ) -> None:
     if config:
         os.environ["DATATK_CONFIG_PATH"] = config
-    if env_file:
-        load_dotenv(dotenv_path=env_file, override=True)
+    dotenv_path = env_file
+    if not dotenv_path:
+        # Resolve relative to the invocation directory, not the installed package location
+        dotenv_path = find_dotenv(usecwd=True)
+    if dotenv_path:
+        load_dotenv(dotenv_path=dotenv_path, override=True)
     if ctx.invoked_subcommand is None:
         typer.echo(ctx.get_help())
 

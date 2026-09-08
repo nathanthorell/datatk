@@ -2,8 +2,6 @@ import re
 import time
 from typing import Any, Dict, List
 
-from dotenv import load_dotenv
-
 from ..utils import DbConnection, get_config, load_connection, modify_connection_for_database
 from ..utils.rich_utils import align_columns, console, create_table
 
@@ -137,7 +135,6 @@ def print_results_summary(results: List[Dict[str, Any]], logging_level: str) -> 
 
 
 def main() -> None:
-    load_dotenv()
     view_config = get_config("view_tester")
     schema = view_config["schema"]
     logging_level = view_config["logging_level"]

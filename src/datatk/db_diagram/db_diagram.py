@@ -1,7 +1,6 @@
 import time
 from typing import Any
 
-from dotenv import load_dotenv
 from rich.markup import escape
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -24,8 +23,7 @@ def main() -> None:
     Main entry point for the db_diagram tool.
     """
     try:
-        # Load environment variables and configuration
-        load_dotenv(override=True)
+        # Load configuration
         db_diagram_config = get_config("db_diagram")
         config = DiagramConfig(db_diagram_config)
 

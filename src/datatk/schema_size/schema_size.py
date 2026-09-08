@@ -1,7 +1,5 @@
 """Schema size analysis tool for analyzing database storage metrics."""
 
-from dotenv import load_dotenv
-
 from ..utils import get_config, load_connection
 from ..utils.config_models import SchemaSizeConfig
 from ..utils.rich_utils import align_columns, console, create_table
@@ -148,8 +146,6 @@ def run_detail_mode(config: SchemaSizeConfig) -> None:
 
 def main() -> None:
     """Main entry point for schema size analysis tool."""
-    load_dotenv()
-
     raw_config = get_config("schema_size")
     config = SchemaSizeConfig(**raw_config)
 

@@ -1,7 +1,6 @@
 import hashlib
 from typing import Dict, List, Set
 
-from dotenv import load_dotenv
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from ..utils import DbConnection, get_config, load_connection, modify_connection_for_database
@@ -138,7 +137,6 @@ def compare_definitions(
 
 
 def main() -> None:
-    load_dotenv()
     object_compare_config = get_config("object_compare")
     schema = object_compare_config["schema"]
     database = object_compare_config.get("database", None)
